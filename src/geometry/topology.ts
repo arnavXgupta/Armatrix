@@ -5,7 +5,7 @@ import type { EdgeTable, IndexedMesh, RawMesh } from './types'
  * Open-addressing hash from an integer triple to a dense id (0, 1, 2, …).
  * Typed arrays only: a Map with string keys is several times slower at 1.5M+ keys.
  */
-function tupleIndex(maxItems: number) {
+export function tupleIndex(maxItems: number) {
   let cap = 16
   while (cap < maxItems * 2) cap *= 2 // load factor <= 0.5
   const mask = cap - 1
@@ -15,6 +15,17 @@ function tupleIndex(maxItems: number) {
   return {
     get size() {
       return size
+    },
+    /** Id of (a, b, c), or -1 if it was never inserted. */
+    find(a: number, b: number, c: number): number {
+      let h = Math.imul(a, 0x9e3779b1) ^ Math.imul(b, 0x85ebca77) ^ Math.imul(c, 0xc2b2ae3d)
+      h = (h ^ (h >>> 15)) & mask
+      for (;;) {
+        const id = table[h]
+        if (id === -1) return -1
+        if (keys[id * 3] === a && keys[id * 3 + 1] === b && keys[id * 3 + 2] === c) return id
+        h = (h + 1) & mask
+      }
     },
     /** Id of (a, b, c), inserting it if new. */
     idOf(a: number, b: number, c: number): number {

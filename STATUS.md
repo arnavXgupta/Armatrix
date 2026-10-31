@@ -1,82 +1,84 @@
 # STATUS.md — current state of the project (read first, update last)
 
-Updated: 2026-10-31 · by: planning session (verified 01–03, wrote plans 04–07)
+Updated: 2026-10-31 · by: plan 07 session
 
 ## Where we are
-Phase: plans 01, 02 and 03 built and verified (dev + production build, 320–1920 px wide).
-Vercel deploy is parked: the user said to leave it for now.
-Current plan: `docs/plans/04-seam-picking.md` — not started. Plans 05, 06 (+06b) and 07 are written too.
+Phase: plans 01–07 built and verified locally. What is left needs the user: deploy, the recording, the
+unseen-part checks on the live URL, the licence choice, and sending the email.
+Plans 04–07 are committed on local `main`; `origin/main` is still at `aedfa35` (plans 01–03) until pushed.
 
-Independent verification (planning session, 2026-10-31): `npm run test` 26/26, `npm run lint`
-clean, `npm run build` clean (715 kB JS, three.js). Headless Chrome at 1440×900 against the dev
-server: empty state, T-joint (51 candidates), fan (161), 1.05M-tri tube-on-plate (16, ~1 s),
-truncated file keeps the loaded part with a specific error, fan-meters → units unknown with the
-orange select, slider to 5° re-chains, wireframe + orbit fine. No console errors. Screenshots in
-the plan-02/03 session scratchpad `shots/v-*.png`.
+What works: load an STL → candidate seams → hover / click to add / shift-click to join / M for manual
+seams → list with drag reorder, rename, delete, order chips → parameter form per seam → export dialog
+with validation, JSON preview, download, import (hash-checked) → autosave and restore on reload → error
+boundary, shortcuts (`?`), first-run hint, drop-zone links to the README.
 
-What works: drop or browse an `.stl` (binary or ASCII, up to 250 MB) → parsed + indexed in a Web
-Worker → shaded part with orbit/zoom/pan, fit (button or R), wireframe, ortho, grid → candidate
-seams drawn as dark lines → angle slider (5–90°) re-chains live → toolbar shows name · tris ·
-unit select (dashed = guessed, orange = unknown) → status bar shows idle / loading % / ready
-summary / error. Bad files never cost the loaded part. Layout is responsive down to 320 px.
-
-## Next action
-1. Build `docs/plans/04-seam-picking.md`. Hooks already in place:
-   - `Scene.setCandidates` builds one `LineSegments` with a per-vertex `color` attribute, so
-     hover can recolour one candidate's segments without rebuilding geometry. Keep a
-     segment → candidate id table when you add picking.
-   - Raw part coordinates live inside `offset` (child of the Z-up-rotated `part` group): use
-     `offset.worldToLocal` on raycast hits so seams store raw coordinates.
-   - `Candidate` already carries `points`, `normals` (unit, torch approach), `length`, `closed`.
-   - "New part" (`clearPart`) needs a confirm once seams exist.
-2. Then plan 05 (parameters + export), 06 (persistence + deploy), 07 (README + recording).
-   Deadline ~2026-11-09: plan 06's deploy step needs the user (git init, push, Vercel import),
-   so raise it as soon as plan 05 is done, not at the end.
+## Next action (user)
+1. Push `main` when ready. Optional: untrack the brand pack (command in decisions.md "Brand pack
+   ignored, not untracked").
+2. Deploy (Vercel, framework Vite, defaults). Paste the URL into `README.md` ("Live app" line) and
+   `docs/submission-email.md`.
+3. Record from `docs/recording-script.md`, upload unlisted, paste the link into both files.
+4. On the live URL: two parts never seen before (one bracket, one organic or scanned), full flow to
+   export. A session can run this with `e2e-07`-style checks once the URL exists.
+5. Licence: README ends with "All rights reserved"; change it if you want MIT.
+6. Send the email in `docs/submission-email.md` to pulkit@armatrix.com.
 
 ## Done
 - [x] Read assignment, extracted palette/fonts/logos → `brand.md`
 - [x] Stack, seam strategy, hosting, caching decided → `decisions.md`
-- [x] Workflow, layout, state model, export draft → `flow.md`
-- [x] 01 scaffold + brand shell (deploy parked by user)
+- [x] Workflow, layout, state model → `flow.md`
+- [x] 01 scaffold + brand shell
 - [x] 02 STL load + viewport
 - [x] 03 feature-edge detection + candidates
-- [ ] 04 seam picking + list + ordering
-- [ ] 05 parameters + export + import
-- [ ] 06 persistence + polish + deploy
-- [ ] 06b optional cloud save (only after 01–05)
-- [ ] 07 README + recording
+- [x] 04 seam picking + list + ordering
+- [x] 05 parameters + export + import
+- [x] 06 persistence + polish (deploy parked)
+- [ ] 06b optional cloud save (not started)
+- [~] 07 README, screenshots, recording script, email draft done; recording, live checks, sending left
 
 ## Verify
-`npm run test` (26 tests: parser, topology/candidates, store races, tokens) · `npm run lint` ·
-`npm run build`. Test parts are in `samples/` (gitignored); outcomes per part are in the plan 02/03
-"Outcome" sections. `samples/` is served by the dev server at `/samples/<name>`.
+- `npm run test` (61 tests, including the README schema-table sync) · `npm run lint` · `npm run build`
+- `npm run docs:schema` after any change to `src/export/schema.ts`.
+- Browser suites (headless Chrome/Edge via puppeteer-core, kept outside the repo in the session scratch
+  folder; recreate from the plan outcomes if needed): e2e-04 (28), e2e-05 (26), e2e-06 (21),
+  e2e-resp (20), e2e-perf (7), e2e-restore (5), e2e-export3 (5), e2e-prod (7), e2e-07 (18).
+- Test parts in `samples/` (gitignored); `node scripts/gen-samples.mjs samples` rebuilds the synthetic
+  ones. The dev server serves them at `/samples/<name>`.
+- Dev builds expose `window.__wsp = { store, scene }` for tests (scene.toClient, pickCandidate).
 
 ## Open questions / blockers
-- Deploy (parked): no Vercel CLI login and no git repo yet. User's call when. Before the first
-  commit, `.gitignore` must exclude `docs/02 Logo System/`, `docs/03 Colours System/`,
-  `docs/04 Fonts System/` (Armatrix's asset pack, moved there from the root by the plan 01
-  session; only the subset copies in `public/brand/` ship).
+- Deploy (parked by the user); everything "live URL" waits on it.
+- Brand pack in `docs/0[234] …` is tracked from the first push. Untrack or keep: user's call.
+- `.agents/`, `.claude/` and the assignment PDF are gitignored (user's call); the PDF is still in
+  `aedfa35`'s history.
 
 ## Gotchas learned (append as you hit them)
 - Bash heredocs with several files in one call failed on this machine; write one file per call
-  or use the Write/Edit tools. (Hit again: a `cat >> … <<'EOF'` + `python - <<'EOF'` combo
-  failed with "unexpected EOF while looking for matching `''".)
-- `03 Colours System/Armatrix_master_file.jpg` is 18800×26149 px; don't open it in tools, hex
-  values are already in `brand.md`.
+  or use the Write/Edit tools.
+- `03 Colours System/Armatrix_master_file.jpg` (now under `docs/`) is 18800×26149 px; don't open it.
 - create-vite won't scaffold into a non-empty folder without prompting. Scaffold in a temp
   dir and copy the files over.
 - Vitest stubs CSS imports, even `?raw`. Read CSS in tests with `node:fs` (see tokens.test.ts).
-- Chrome-extension screenshots time out on this machine (window not painted, even for plain
-  pages). Use headless Chrome via `puppeteer-core` from a scratch folder instead: real GPU,
-  any viewport size, `DragEvent` drops of `/samples/*` files. Changing `isMobile`/`hasTouch`
-  in `setViewport` reloads the page, so set the viewport before `goto`.
-- Port 5173 is taken by another app on this machine; run the dev server with `--port 5199`.
-- Browser-worker geometry timings swing 3–5x between Chrome instances on this laptop (hybrid
-  CPU scheduling). Compare timings in Node (vitest) before "optimising" a browser number.
+- Chrome-extension screenshots time out on this machine. Use headless Chrome via `puppeteer-core`:
+  real GPU, any viewport, `DragEvent` drops of `/samples/*`. Changing `isMobile`/`hasTouch` in
+  `setViewport` reloads the page. Rejections from `page.evaluate` run in an isolated world and never
+  reach page listeners: use `page.addScriptTag` to simulate app errors.
+- Clear storage with CDP `Storage.clearDataForOrigin` before navigating, not from inside the page:
+  the app restores the last plan on boot and races the clear.
+- The user runs the dev server on 5173 (`npm run dev`). Use it; don't start a second one.
+- Browser-worker timings swing 3–5x between Chrome instances on this laptop (hybrid CPU). Compare
+  in Node (vitest) before optimising a browser number; time steady state, not the first call
+  (shader compile and buffer upload happen once).
+- React StrictMode re-runs effects in dev: never call `dialog.close()` in a cleanup when the
+  dialog's `close` handler changes state (it closed the export dialog instantly).
+- At exactly 1280 px the wide layout applies (seams panel 260 px); at 1279 it is 220 px.
 - With exactly one candidate the status says "seam", not "seams"; match `/candidate seams? at/`.
-- Re-subsetting fonts: venv with `fonttools brotli`, `pyftsubset <ttf> --unicodes=... --flavor=woff2
-  --layout-features='*'`. Unicode list in decisions.md (Latin + U+2190-2193 + U+25A0).
 - `erasableSyntaxOnly` is on: no TS parameter properties (`constructor(private x)`) or enums.
-- A dev server from an earlier session may still be running on 5199; `curl localhost:5199` and
-  reuse it instead of starting another. The headless driver lives in the plan-02/03 session
-  scratchpad (`…/8b50f5cc-…/scratchpad/pp/drive.mjs`, puppeteer-core installed there).
+- Re-subsetting fonts: venv with `fonttools brotli`, `pyftsubset <ttf> --unicodes=... --flavor=woff2
+  --layout-features='*'`. Unicode list in decisions.md.
+- Edge is at `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`; puppeteer-core drives it
+  like Chrome. Firefox is not installed.
+- In a puppeteer incognito context, `Browser.setDownloadBehavior` needs `browserContextId: ctx.id`, or
+  downloads silently go nowhere.
+- On the T-joint's default view, the −X web foot (x = 95) is hidden behind the web; the picker
+  correctly refuses it. Use the +X foot or a gusset edge in tests.

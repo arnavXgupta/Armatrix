@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { findCandidates } from './candidates'
+import { makeContactTest } from './contact'
 import { box, cube, lBracket, prism, raw, type Tri } from './fixtures'
 import { buildEdges, mergeVertices } from './topology'
 import type { Candidate } from './types'
@@ -109,6 +110,26 @@ describe('findCandidates', () => {
     expect(cs.every((c) => c.length >= 0.5)).toBe(true)
     expect(cs.map((c) => c.id)).toEqual(cs.map((_, i) => i))
     expect(cs[0].length).toBeCloseTo(10)
+  })
+
+  test('separate bodies: a web standing on a plate gets a torch direction out of the corner, not into the plate', () => {
+    const tris = [...box([0, 0, 0], [200, 120, 10]), ...box([95, 0, 10], [105, 120, 90])]
+    const { mesh, edges } = analyse(tris)
+    const cs = findCandidates(mesh, edges, 30, 0, makeContactTest(mesh, 250))
+    const weld = cs.find((c) => c.length === 120 && c.points.every((p) => p[0] === 105 && p[2] === 10))!
+    expect(weld).toBeDefined()
+    for (const n of weld.normals) expect((n[0] + n[2]) / Math.SQRT2).toBeGreaterThan(0.99) // (+x, +z) bisector
+    // the plate's own top edges are free: their bisector still points up and out
+    const rim = cs.find((c) => c.length === 200 && c.points.every((p) => p[1] === 0 && p[2] === 10))!
+    for (const n of rim.normals) expect((n[2] - n[1]) / Math.SQRT2).toBeGreaterThan(0.99)
+  })
+
+  test('contact test leaves a fused part alone', () => {
+    const { mesh, edges } = analyse(lBracket())
+    const contact = makeContactTest(mesh, 3)
+    expect(Array.from({ length: mesh.triangles }, (_, f) => contact(f)).some(Boolean)).toBe(false)
+    const inner = findCandidates(mesh, edges, 30, 0, contact).find((c) => c.points.every((p) => p[0] === 1 && p[1] === 1))!
+    for (const n of inner.normals) expect((n[0] + n[1]) / Math.SQRT2).toBeGreaterThan(0.99)
   })
 
   test('faceted cylinder: facet edges appear only below the facet angle', () => {

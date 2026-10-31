@@ -23,3 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 samples/
+
+# Armatrix brand pack (the app ships only the subset copies in public/brand/; see decisions.md)
+docs/02 Logo System/
+docs/03 Colours System/
+docs/04 Fonts System/
+# macOS AppleDouble metadata
+._*
+
+# Local agent skills and the assignment brief: not part of the app (see decisions.md)
+.claude/
+.agents/
+Software Intern Assignment Weld Seam Planner.pdf

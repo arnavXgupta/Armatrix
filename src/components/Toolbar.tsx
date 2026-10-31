@@ -2,8 +2,8 @@ import { useStore } from '../store/useStore'
 
 export default function Toolbar() {
   const part = useStore((s) => s.part)
-  const setUnits = useStore((s) => s.setUnits)
-  const clearPart = useStore((s) => s.clearPart)
+  const seams = useStore((s) => s.seams.length)
+  const { setUnits, clearPart, setExportOpen } = useStore.getState()
 
   return (
     <header className="toolbar">
@@ -19,7 +19,7 @@ export default function Toolbar() {
             <select
               className={['unit-select', part.unitsGuessed && 'is-guessed', part.units === 'unknown' && 'is-unknown'].filter(Boolean).join(' ')}
               value={part.units === 'unknown' ? '' : part.units}
-              onChange={(e) => setUnits(e.target.value as 'mm' | 'in')}
+              onChange={(e) => setUnits(e.target.value as 'mm' | 'in' | 'm')}
               aria-label="Part units"
               title={part.unitsGuessed ? 'Guessed from the part size. Pick to confirm.' : 'Part units'}
             >
@@ -30,6 +30,7 @@ export default function Toolbar() {
               )}
               <option value="mm">mm</option>
               <option value="in">in</option>
+              <option value="m">m</option>
             </select>
           </>
         ) : (
@@ -37,11 +38,18 @@ export default function Toolbar() {
         )}
       </div>
       {part && (
-        <button type="button" className="btn-ghost" onClick={clearPart}>
+        <button type="button" className="btn-ghost" onClick={() => clearPart()} title="Close this part and start over">
           New part
         </button>
       )}
-      <button type="button" className="btn-primary" disabled title="Pick seams first (next build)">
+      <button
+        id="export-btn"
+        type="button"
+        className="btn-primary"
+        disabled={!part}
+        onClick={() => setExportOpen(true)}
+        title={!part ? 'Load a part first' : seams === 0 ? 'Import a saved plan, or add seams to export' : 'Review and download the weld job'}
+      >
         Export <span aria-hidden="true">→</span>
       </button>
     </header>

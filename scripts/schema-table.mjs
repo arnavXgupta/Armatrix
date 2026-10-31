@@ -1,0 +1,82 @@
+// Builds README's weld-job field table from the JSDoc in src/export/schema.ts, so the two never drift.
+//   node scripts/schema-table.mjs          print the table
+//   node scripts/schema-table.mjs --write  replace the table between the markers in README.md
+// Reads the schema's own conventions: one-line /** */ above every field, object types declared as
+// `export type X = {`, one-line string-union aliases. Anything else throws with the line number.
+import { readFileSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+
+const root = new URL('..', import.meta.url)
+export const START = '<!-- schema:start -->'
+export const END = '<!-- schema:end -->'
+
+const UNITS = [[/MmS$/, 'mm/s'], [/MMin$/, 'm/min'], [/Deg$/, '°'], [/Mm$/, 'mm'], [/Hz$/, 'Hz'], [/TimeS$/, 's'], [/^voltageV$/, 'V'], [/^currentA$/, 'A']]
+const unitOf = (name, doc) => UNITS.find(([re]) => re.test(name))?.[1] ?? (/\bin mm\b/.test(doc) ? 'mm' : '')
+
+export function schemaTable(src = readFileSync(new URL('src/export/schema.ts', root), 'utf8')) {
+  src = src.replace(/\r\n/g, '\n')
+  const lines = src.split('\n')
+  const alias = { 'typeof SCHEMA_VERSION': `"${src.match(/SCHEMA_VERSION = '([^']+)'/)[1]}"` }
+  for (const m of src.matchAll(/^export type (\w+) = ('.+)$/gm)) alias[m[1]] = m[2].replaceAll("'", '"')
+  const objects = {}
+  lines.forEach((l, i) => {
+    const m = l.match(/^export type (\w+) = \{$/)
+    if (m) objects[m[1]] = i + 1
+  })
+
+  const rows = []
+  // Reads fields from line i to the closing brace; returns the line after it.
+  function walk(i, prefix) {
+    let doc = null
+    for (; i < lines.length; i++) {
+      const l = lines[i].trim()
+      if (l === '}') return i + 1
+      const d = l.match(/^\/\*\* (.+) \*\/$/)
+      if (d) {
+        doc = d[1]
+        continue
+      }
+      const f = l.match(/^(\w+)(\?)?: (.+)$/)
+      if (!f) throw new Error(`schema.ts:${i + 1}: can't read "${l}"`)
+      if (!doc) throw new Error(`schema.ts:${i + 1}: field ${f[1]} has no JSDoc`)
+      const [, name, opt, type] = f
+      const path = prefix + name
+      const named = type.replace(/\[\]$/, '')
+      const row = { path, opt: !!opt, doc, unit: unitOf(name, doc) }
+      if (type === '{') {
+        rows.push({ ...row, type: 'object' })
+        i = walk(i + 1, `${path}.`) - 1
+      } else if (objects[named]) {
+        rows.push({ ...row, type: type.endsWith('[]') ? 'array' : 'object' })
+        walk(objects[named], `${path}${type.endsWith('[]') ? '[]' : ''}.`)
+      } else {
+        rows.push({ ...row, type: (alias[type] ?? type).replace(/\bVec3\b/g, '[x, y, z]').replaceAll("'", '"') })
+      }
+      doc = null
+    }
+    throw new Error(`schema.ts: unclosed type under ${prefix}`)
+  }
+  walk(objects.WeldJob, '')
+
+  const esc = (s) => s.replaceAll('|', '\\|')
+  return [
+    '| Field | Type | Unit | Meaning |',
+    '|---|---|---|---|',
+    ...rows.map((r) => `| \`${r.path}${r.opt ? '?' : ''}\` | \`${esc(r.type)}\` | ${r.unit} | ${esc(r.doc)} |`),
+  ].join('\n')
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const table = schemaTable()
+  if (!process.argv.includes('--write')) {
+    console.log(table)
+  } else {
+    const file = new URL('README.md', root)
+    const readme = readFileSync(file, 'utf8')
+    const a = readme.indexOf(START)
+    const b = readme.indexOf(END)
+    if (a < 0 || b < a) throw new Error(`README.md needs ${START} … ${END}`)
+    writeFileSync(file, `${readme.slice(0, a + START.length)}\n\n${table}\n\n${readme.slice(b)}`)
+    console.log('README.md schema table updated')
+  }
+}

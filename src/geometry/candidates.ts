@@ -5,7 +5,13 @@ import type { Candidate, EdgeTable, IndexedMesh, Vec3 } from './types'
  * polylines that break at ends and junctions. Chains shorter than minLength are dropped.
  * Sorted longest first; ids follow that order.
  */
-export function findCandidates(mesh: IndexedMesh, edges: EdgeTable, thresholdDeg: number, minLength: number): Candidate[] {
+export function findCandidates(
+  mesh: IndexedMesh,
+  edges: EdgeTable,
+  thresholdDeg: number,
+  minLength: number,
+  inContact: (face: number) => boolean = () => false, // see contact.ts
+): Candidate[] {
   const { a, b, f0, f1, flip, angle } = edges
   const sel = new Int32Array(edges.count)
   let ns = 0
@@ -62,10 +68,13 @@ export function findCandidates(mesh: IndexedMesh, edges: EdgeTable, thresholdDeg
   const point = (v: number): Vec3 => [P[v * 3], P[v * 3 + 1], P[v * 3 + 2]]
   const edgeNormal = (e: number): Vec3 => {
     const g = f0[e] * 3
-    const n: Vec3 = [fn[g], fn[g + 1], fn[g + 2]]
+    const c0 = inContact(f0[e]), c1 = inContact(f1[e])
+    // A face pressed against another body: the torch comes in along that body's surface normal instead.
+    const s0 = c0 && !c1 ? -1 : 1
+    const n: Vec3 = [s0 * fn[g], s0 * fn[g + 1], s0 * fn[g + 2]]
     if (f1[e] >= 0) {
       const h = f1[e] * 3
-      const s = flip[e] ? -1 : 1
+      const s = (flip[e] ? -1 : 1) * (c1 && !c0 ? -1 : 1)
       n[0] += s * fn[h]
       n[1] += s * fn[h + 1]
       n[2] += s * fn[h + 2]

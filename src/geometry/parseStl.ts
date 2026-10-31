@@ -97,7 +97,7 @@ function compact(p: Float32Array, n: number, format: RawMesh['format']): RawMesh
   return { positions, triangles: kept, dropped: n - kept, format, bbox: { min, max } }
 }
 
-export type Units = 'mm' | 'in' | 'unknown'
+export type Units = 'mm' | 'in' | 'm' | 'unknown'
 
 /** STL has no units. Guess from the longest extent; the user confirms in the toolbar. */
 export function guessUnits(bbox: Bbox): Units {
