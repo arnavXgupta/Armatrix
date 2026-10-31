@@ -1,0 +1,31 @@
+/* Copied from brand.md. Keep in sync: src/styles/tokens.test.ts fails on drift. */
+:root {
+  --forest:    #030500; --forest-1: #090D00; --forest-2: #0E1600; --forest-3: #141E00; --forest-4: #192600;
+  --sand:      #F6F6EE; --sand-1:   #DFDFD7; --sand-2:   #C5C5BD; --sand-3:   #ABABA5; --sand-4:   #93938D;
+  --green:     #2B381F; --green-1:  #344425; --green-2:  #3D4F2C; --green-3:  #455B32; --green-4:  #628047;
+  --orange:    #E97F01; --orange-1: #E98917; --orange-2: #E9942F; --orange-3: #E99E46; --orange-4: #E9B475;
+
+  --bg:        var(--forest-2);
+  --panel:     var(--forest-3);
+  --panel-2:   var(--forest-4);
+  --border:    var(--green-1);
+  --text:      var(--sand);
+  --text-muted: var(--sand-3);
+  --accent:    var(--green-4);
+  --action:    var(--orange);
+
+  --font-ui:   "Onest", system-ui, sans-serif;        /* COMMAND */
+  --font-body: "42dot Sans", system-ui, sans-serif;   /* TRANSMIT */
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Motion — values from armatrix.com */
+  --ease-out:    cubic-bezier(0.16, 0.84, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:  120ms;   /* colour, underline */
+  --dur-base:  200ms;
+  --dur-hover: 350ms;   /* buttons, rows */
+  --dur-slow:  420ms;   /* panels */
+
+  --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px;   /* surfaces stay square */
+  --focus-ring: var(--orange);  /* site has none; 2px solid, 3px offset */
+}

@@ -1,0 +1,32 @@
+@font-face {
+  font-family: "Onest";
+  src: url("/brand/fonts/onest-variable-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "42dot Sans";
+  src: url("/brand/fonts/42dotsans-variable-latin.woff2") format("woff2");
+  font-weight: 300 800;
+  font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 13px/1.4 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
