@@ -7,9 +7,9 @@ your browser.
 
 Built for the Armatrix software intern assignment.
 
-**Live app:** [armatrix-weld-seam-planner.vercel.app](https://armatrix-weld-seam-planner.vercel.app/) · **Walkthrough video:** to be recorded
+**Live app:** [armatrix-weld-seam-planner.vercel.app](https://armatrix-weld-seam-planner.vercel.app/)
 
-![T-joint weldment with four seams. The selected L-shaped gusset seam is orange with torch-direction ticks, numbered chips show the weld order, dashed lines show the moves between seams, an axis triad and view buttons sit top right, and the parameter form is on the right. Above the seam list a totals card reads 4 seams, 400 mm, 1 min 23 s weld time and 233 mm air travel; each row reads like "120 mm · fillet · GMAW · 24 s".](docs/screenshots/planner.png)
+![The T-joint sample with four seams: the selected seam in orange with torch-direction ticks, numbered chips for the weld order, dashed air moves between seams, and the parameter form on the right.](docs/screenshots/planner.png)
 
 ## Contents
 
@@ -18,13 +18,8 @@ Built for the Armatrix software intern assignment.
 - [Features](#features)
 - [Architecture and design decisions](#architecture-and-design-decisions)
 - [Weld job JSON schema](#weld-job-json-schema)
-- [Testing](#testing)
 - [Brand](#brand)
 - [AI tooling](#ai-tooling)
-
-The assignment asks the README for four things: how to run it, the architecture and key decisions and why,
-the features, and the export schema with every field explained. Those are the first five sections, in that
-order after the walkthrough; the rest is supporting material.
 
 ## Run it locally
 
@@ -39,119 +34,54 @@ npm run dev          # http://localhost:5173 (port taken? npm run dev -- --port 
 
 1. **Load a part.** Drop an `.stl` on the page or click to browse. Binary and ASCII both work, up to
    250 MB. Check the units in the toolbar: `mm`, `in` or `m`. A dashed outline means the app guessed.
-2. **Find seams.** Dark lines on the part are candidate seams. They fade back while a seam is selected.
-   The angle slider sets how sharp an edge must be to count. Lower it to see more edges, raise it to
-   see fewer.
-3. **Pick seams.** Hover a line to see it in orange with its length and angle. Click to add it as a
-   seam. Shift-click a touching line to extend the selected seam. Where no line fits, press `M` and
-   click points on the part, then press `Enter`.
+2. **Find seams.** Dark lines on the part are candidate seams. The angle slider sets how sharp an edge
+   must be to count: lower it to see more edges, raise it to see fewer.
+3. **Pick seams.** Hover a line to see its length and angle, click to add it as a seam. Shift-click a
+   touching line to extend the selected seam. Where no line fits, press `M` and click points on the
+   part, then press `Enter`.
 4. **Set the order.** The seam list is the weld order. Drag rows or press `Shift + ↑/↓`. Numbered chips
-   in the view mark where each seam starts, and dashed lines show the torch's moves between seams.
-   "Order by nearest" shortens those moves. `F` flips a seam's direction. `Ctrl + Z` undoes any seam
-   edit.
+   mark where each seam starts, dashed lines show the torch's moves between seams, and "Order by
+   nearest" shortens them. `F` flips a seam's direction. `Ctrl + Z` undoes any seam edit.
 5. **Set parameters.** Select a seam to edit its weld type, process, speeds, angles, weave and arc
-   settings. "Apply to all fillet seams", under the weld type, copies them to every seam of that type.
-6. **Export.** A count on the Export button says how many problems wait: orange for errors, sand for
-   warnings. Open Export, fix any errors it lists, then download `<job>-weldjob.json`. Import in the
-   same dialog loads a saved job back onto the same part.
+   settings. "Apply to all fillet seams" copies them to every seam of that type.
+6. **Export.** The Export button counts the problems waiting: orange for errors, sand for warnings. Open
+   it, fix any errors it lists, then download `<job>-weldjob.json`. Import in the same dialog loads a
+   saved job back onto the same part.
 
-The plan saves as you work. Reloading the tab brings back the part, the seams and their settings.
-Press `?` in the app for every shortcut.
-
-The same walkthrough, and the field table below, are one click away inside the app: **How it works** and
-**Export schema** in the empty state.
-
-<details>
-<summary><em>All keyboard and mouse controls</em></summary>
-
-<br>
-
-| Input | Action |
-|---|---|
-| Click | Add the edge under the pointer as a seam, or select its seam |
-| `Shift` + click | Join an edge onto the selected seam |
-| `M` | Switch between picking edges and drawing a manual seam |
-| `Enter` · double-click | Finish the manual seam |
-| `Backspace` | Remove the last manual point |
-| `Esc` | Cancel the manual seam, the prompt, or the selection |
-| `↑` `↓` | Select the previous or next seam |
-| `Shift` + `↑` `↓` | Move the selected seam earlier or later in the weld order |
-| `F` | Flip the selected seam's direction |
-| `Del` | Delete the selected seam |
-| `Ctrl` + `Z` | Undo the last seam edit (in manual mode: the last point) |
-| `Ctrl` + `Shift` + `Z` · `Ctrl` + `Y` | Redo |
-| `R` | Fit the part in view |
-| `1` `2` `3` `4` | View from the top, front, right or front-right corner |
-| `F2` · double-click | Rename a seam in the list |
-| Drag · right-drag · wheel | Orbit · pan · zoom |
-| `?` | Show this list |
-
-</details>
+The plan saves as you work; reloading the tab brings back the part, the seams and their settings.
+Press `?` in the app for every keyboard and mouse control. The same walkthrough and the field table
+below are one click away inside the app: **How it works** and **Export schema** in the empty state.
 
 ## Features
 
-**Loading.** Reads binary and ASCII STL in a Web Worker, with a progress line. It copes with:
+- **Any STL.** Binary and ASCII, parsed in a Web Worker with a progress line. Copes with unmerged
+  vertices, degenerate, duplicate and flipped triangles and non-manifold edges. Units are guessed from
+  the part's size and can be overridden. Empty, truncated, renamed or non-STL files each get a specific
+  message, and the part already loaded stays. 1M+ triangle parts load without freezing the page.
+- **Seam detection.** Sharp and open edges are chained into candidate seams. The angle slider (5–90°)
+  re-chains them without reloading the part. Only edges you can see can be picked. The torch direction
+  stays correct where separate touching bodies meet, which is how most weldments arrive.
+- **Manual seams.** Draw a seam point by point on any surface; click the first point to close a loop.
+- **Weld order.** Each row reads as a line of the job (`120 mm · fillet · GMAW · 24 s`) and a totals
+  card adds up seams, length, weld time and air travel. Dashed lines with arrowheads show every move
+  between seams, drawn through the part so a move behind it still shows. "Order by nearest" reorders
+  the seams so each starts near where the last one ended. Rename, reorder, flip and delete, with 50
+  steps of undo and redo.
+- **Parameters.** Each seam has its own weld type, process, travel speed, wire feed, voltage, current,
+  passes, weave, work and travel angles, approach, retract and tack flag. Defaults depend on weld type
+  and process, and settings copy to every seam of the same type.
+- **Export and import.** Validation lists errors, which block the download, and warnings, which don't;
+  clicking an issue jumps to its field. The dialog shows a JSON preview with copy and download. Import
+  checks the part's SHA-256 and asks before applying a plan made for a different part.
+- **Persistence.** The plan autosaves to `localStorage` and the STL bytes to IndexedDB, and a reload
+  restores both. If storage is blocked the app says "autosave off" and keeps working.
+- **Interface.** View presets (`1`–`4`) and an axis triad in the part's own frame. Works from 320 px
+  phones with touch orbit to 4K screens. Keyboard shortcuts for every seam action. A crash screen that
+  still lets you download the plan. Reduced motion respected. "How it works" and "Export schema" cards
+  in the empty state, the schema card generated from the same source as the table below.
 
-- unmerged vertices, degenerate and duplicate triangles, flipped triangles, non-manifold edges
-- unit guessing from the part's size, overridable in the toolbar
-- 1M+ triangle parts without freezing the page
-- empty, truncated, renamed or non-STL files: each gets a specific message, and the part already
-  loaded stays
-
-**Seam detection.** Sharp and open edges are chained into candidate seams. The angle slider (5–90°)
-re-chains them without reloading the part. Only edges you can see can be picked.
-
-**Seam editing.**
-
-- Click to add an edge, shift-click to join one on.
-- Draw a seam point by point; click the first point to close a loop.
-- Rename, reorder (drag or keys), flip and delete seams. The selected row carries the move and delete
-  buttons.
-- Each row reads as a line of the job: length, weld type, process and time (`120 mm · fillet · GMAW ·
-  24 s`). A totals card above the list adds up seams, length, weld time and air travel.
-- Undo and redo every seam edit, 50 steps back, with `Ctrl + Z` or the arrows above the list.
-- Replacing a part that has seams asks first.
-
-**Sequence and direction.**
-
-- Dashed lines with arrowheads show each move from one seam's end to the next seam's start. They draw
-  through the part, so a move behind it still shows.
-- The totals card and the export carry the total of those moves (air travel).
-- "Order by nearest" reorders the seams so each starts near where the last one ended. The first seam
-  stays first. An open seam may be reversed; a loop keeps its start point.
-- The selected seam shows short ticks along its torch direction.
-
-**View.** Top, front, right and corner presets (keys `1`–`4`), and an axis triad that shows the part's
-own X, Y and Z.
-
-**Parameters.**
-
-- Each seam has its own weld type, process, travel speed, wire feed, voltage, current, passes, weave,
-  work and travel angles, approach, retract and tack flag.
-- Defaults depend on weld type and process.
-- A number field refuses letters.
-- Settings copy to every seam of the same weld type.
-- The status bar estimates the job's total time: the seams' weld time plus the moves between them.
-
-**Export and import.**
-
-- Validation lists errors, which block the download, and warnings, which don't. Clicking an issue
-  jumps to its field. The Export button shows their count before you open it.
-- The dialog shows a JSON preview, copy and download.
-- Import checks the part's SHA-256 and asks before applying a plan made for a different part.
-
-**Persistence.** The plan autosaves to `localStorage` and the STL bytes to IndexedDB. Reload restores
-both. If the browser dropped the STL, the app asks you to drop the same file again. If storage is
-blocked, it says "autosave off" and keeps working.
-
-**Interface.**
-
-- Responsive from 320 px phones (touch orbit and zoom) to 4K screens, with 40 px targets on touch.
-- Keyboard shortcuts for every seam action, and a first-run hint.
-- A crash screen that still lets you download your plan.
-- Reduced-motion support.
-- "How it works" and "Export schema" cards in the empty state. The schema card is generated from the
-  same JSDoc as the table below.
+Known limitations: checked in Chrome and Edge only. Weld parameters are starting values, not a
+qualified welding procedure. Plans are saved in this browser only.
 
 ## Architecture and design decisions
 
@@ -175,29 +105,29 @@ export ─ src/export/   toWeldJob → validateJob → JSON download
                        import: parseWeldJob → seamsFromJob
 ```
 
-- **Pure geometry.** `src/geometry/` holds plain functions on typed arrays, with no three.js imports.
-  That makes them unit-testable in Node and movable into a worker. Hash tables are typed-array
-  open-addressing tables, because a `Map` with string keys is several times slower at a million
-  vertices.
-- **Worker boundary.** Parsing, vertex welding and the edge table run once per file in the worker,
-  which keeps them in memory. A slider move sends one number and gets candidates back: 7–9 ms on a
-  1M-triangle part, measured in Node. Every request carries a sequence number, and only the newest may write
-  the store.
-- **zustand, not Context or react-three-fiber.** The three.js scene is not React, but it reads and
-  writes the same state as the panels. zustand's `getState()` and `subscribe()` work outside React.
-  Driving three.js directly keeps the render loop and picking in plain code that can be read line by
-  line.
-- **Render on demand.** There is no animation loop. A frame renders when the camera moves, the window
-  resizes or the store changes.
+- **Pure geometry in a Web Worker.** `src/geometry/` is plain functions on typed arrays with no three.js
+  imports, so it runs in Node and in the worker alike. Parsing, vertex welding and the edge table run
+  once per file and stay in worker memory; a slider move sends one number and gets candidates back,
+  7–9 ms on a 1M-triangle part. Hash tables are typed-array open-addressing tables, because a `Map`
+  with string keys is several times slower at a million vertices. Every request carries a sequence
+  number and only the newest may write the store.
+- **Plain three.js with zustand, not react-three-fiber or Context.** The scene is not React, but it
+  reads and writes the same state as the panels, and zustand's `getState()` and `subscribe()` work
+  outside React. The render loop and picking stay in plain code that can be read line by line. There
+  is no animation loop: a frame renders when the camera moves, the window resizes or the store changes.
+- **GPU picking, not line raycasting.** A second scene draws a depth-only copy of the part and the
+  candidate lines, each coloured with its id, and only a 13 × 13 px window around the pointer is
+  rendered and read back. Hidden edges can't be picked, which a line raycast gets wrong, and a pick
+  costs 2–6 ms on a 1M-triangle part.
 - **Raw coordinates.** The part keeps its STL coordinates inside a rotated group (Z up). Picked points
   are converted back with `worldToLocal`, so exported points are in the file's own frame, never
   re-centred.
-- **Persistence behind one interface.** Everything goes through `src/storage/` (`savePlan`,
-  `loadPlan`, `saveFile`, `loadFile`). The saved document is the export JSON plus a little UI state.
-  A backend is one more implementation of the same interface that POSTs and GETs that document, keyed
-  by the part's SHA-256.
-
-Each feature's plan, with its test results, is in [`docs/plans/`](docs/plans/).
+- **Seams own their points.** Candidates are re-derived and their ids change with the slider, so a seam
+  matches its edge by geometry, not by stored ids. Export never depends on re-running detection.
+- **One document for export and autosave.** Always in mm, in the part's frame, tied to the part's
+  SHA-256, and read and written through one interface in `src/storage/` (`savePlan`, `loadPlan`,
+  `saveFile`, `loadFile`). A backend is one more implementation of that interface that POSTs and GETs
+  the same document.
 
 ### How seam detection works
 
@@ -225,26 +155,10 @@ the edges whose two triangles face different directions. Detection lives in `src
 
 ![The 40 mm fan with candidate edges drawn dark and the outer rim hovered in orange, with a tooltip reading "crease 90° · 153 mm · click to add".](docs/screenshots/detection.png)
 
-Picking uses the GPU. A second scene draws a depth-only copy of the part and the candidate lines, each
-line coloured with its id. Only a 13 × 13 px window around the pointer is rendered and read back.
-Hidden edges can't be picked, and a pick costs 2–6 ms on a 1M-triangle part.
-
-### Key decisions
-
-- **Plain three.js, not react-three-fiber.** The render loop and picking stay visible in plain code.
-- **Geometry as pure typed-array functions in a worker.** They can be tested in Node, and a 1M-triangle
-  part never blocks the page.
-- **GPU picking instead of raycasting lines.** A line raycast also hits edges behind the part.
-- **Seams own their points.** Candidates are re-derived and their ids change with the slider, so the
-  app matches a seam to its edge by geometry, not by stored ids. Export never depends on re-running
-  detection.
-- **One document for export and autosave.** It is always in mm, in the part's frame, and tied to the
-  part's SHA-256. A future backend stores the same document.
-
 ## Weld job JSON schema
 
 The export format is defined in [`src/export/schema.ts`](src/export/schema.ts), with a one-line comment
-on every field. The table below is generated from those comments, and a test fails if the two drift.
+on every field. The table below is generated from those comments.
 
 What a reader can rely on:
 
@@ -424,98 +338,20 @@ field is in that unit.
 
 ![The export dialog: job name, operator and notes fields, a summary line, the JSON preview, and Import, Copy and Download buttons.](docs/screenshots/export.png)
 
-## Testing
-
-`npm run test` runs the vitest suites:
-
-- the STL parser: binary, ASCII, CRLF, scientific notation, padding, NaN, truncated and empty files
-- vertex welding and the edge table: winding flips, non-manifold edges, degenerate triangles
-- candidate chaining and contact faces, with exact candidate counts on the generated parts
-- seam operations: join in all four end pairings, flip, loop start, geometric ownership
-- the store: load races, join and toggle rules, manual mode, replace-part prompts, apply-to-type, import
-- export: defaults for every weld type and process, unit scaling, every validation rule, round trip, the
-  per-seam time in the list and the issue count on the Export button
-- storage, with in-memory stubs for `localStorage` and IndexedDB, including quota errors
-- brand tokens against `brand.md`, and this README's schema table against `schema.ts`
-
-The app was also checked end to end in headless Chrome (puppeteer-core with the real GPU). The checks
-drop real files, click, drag, type, reload and download. 203 checks pass across the dev server and the
-production build. A layout audit then checks every visible element in 13 app states at 35 window sizes,
-from 3840 × 2160 down to 320 × 568, with touch on phones and tablets: overflow, clipping, overlap, text
-size and tap-target size.
-
-<details>
-<summary><em>Test parts and what each one exercises</em></summary>
-
-<br>
-
-The parts live in `samples/`, which is not in the repo because of size and licensing. Regenerate the
-synthetic ones with `node scripts/gen-samples.mjs samples`.
-
-| Part | Triangles | Exercises |
-|---|---|---|
-| `t-joint.stl` | 48 | A weldment of five separate touching bodies: plate, web and three gussets. Torch direction at contact faces. Exactly 51 candidates at 30°. |
-| `40mmFan.stl` | 2,324 | A real binary STL from Thingiverse. Hole rims become closed loops. |
-| `40mmFan-ascii.stl` | 2,324 | ASCII with CRLF and scientific notation. Gives the same 161 candidates as the binary. |
-| `fan-meters.stl` | 2,324 | The fan in metres: units can't be guessed and must be set. It exports as a 40 mm part. |
-| `tube-on-plate-big.stl` | 1,052,684 | 52.6 MB. Load time, picking speed, manual raycast, restore from IndexedDB. |
-| `noisy-scan.stl` | ~980,000 | A jittered surface. Facet noise and the slowest re-chain, at 5°. |
-| `empty.stl`, `truncated.stl`, `renamed-text.stl`, `bracket.obj` | | Each gets its own error message, and the loaded part survives. |
-
-</details>
-
-<details>
-<summary><em>Browser checks and measured performance</em></summary>
-
-<br>
-
-| Suite | Checks | Covers |
-|---|---|---|
-| Seam picking | 28 | Hidden edges not pickable, hover, add, join, refused join, flip, reorder by key and drag, rename, delete, replace-part prompt, fan hole loop, manual loop on the 1M-triangle part |
-| Parameters and export | 26 | Field validation, weave fields, reset, apply-to-all, export preview, download, `Esc` and focus return, clickable issues, import round trip, wrong-part import, unknown units, metres |
-| Persistence and polish | 21 | Autosave, reload restore, missing-file path, discard, New part, shortcuts, runtime errors, crash screen with plan download, blocked storage |
-| Responsive | 20 | 1024 px, then 768, 390 and 360 px with touch: layout, touch orbit, no horizontal scroll |
-| Performance | 7 | Picking time, manual raycast, 5° re-chain, CPU throttled 4× |
-| Restore | 5 | The fan and the 52.6 MB part restore from IndexedDB |
-| Export on three parts | 5 | T-joint, fan and tube export valid jobs |
-| Order, direction, undo, views | 53 | Air lines and totals, order by nearest and its undo, undo/redo by key and button, text fields keep their own undo, torch ticks lean off both plates, ≤ 64 ticks on a 1,024-point loop with no frame-time cost, view presets in both projections, triad at three widths, schema 1.1 download |
-| List, totals and badge | 31 | Row lines and their times, Notes and Apply in view at 1280 × 730, export summary equal to the totals card, Export badge counts and colours, candidates dimmed while a seam is selected and faded in on load, the 220 px column drops the process |
-| Production build | 7 | Same flows on `vite preview`, including a 64-character SHA-256 |
-
-Measured on the development laptop, 1M-triangle part:
-
-- drop to ready: about 1–6 s including reading the file (timings swing 3–5× between runs on this
-  hybrid CPU)
-- pick under the pointer: 2–6 ms median; 6–13 ms with the CPU throttled 4×
-- slider re-chain: 7–9 ms in Node; the noisy scan at 5° takes 1–2 s in the worker, and the page stays
-  live
-
-The browser suites run from a scratch folder, outside the repo, so `puppeteer-core` is not a project
-dependency.
-
-</details>
-
-**Known limitations:** Chrome and Edge only so far; Firefox and Safari haven't been checked. Weld
-parameters are starting values, not a qualified welding procedure. Plans are saved in this browser
-only.
-
 ## Brand
 
-The app uses the Armatrix palette and type from the brand pack. [`brand.md`](brand.md) has the values,
-and `src/styles/tokens.css` holds them as CSS variables. A test keeps the two in sync.
-
-- **Dark theme.** Dark Forest backgrounds, Light Sand text, and a sand-coloured matte part.
-- **Green means structure, orange means action.** Revolution Green marks borders, candidate lines and
-  placed seams. Bright Discovery orange is only for the primary button, the hovered edge, the
-  selected seam and warnings.
-- **Type.** Onest for labels, buttons and numbers, uppercase and tracked as the guideline asks.
-  42dot Sans for help text. Both are self-hosted Latin subsets, about 30 KB each.
+The app uses the Armatrix palette and type from the brand pack: the values are in
+[`brand.md`](brand.md) and `src/styles/tokens.css` holds them as CSS variables. Dark Forest
+backgrounds, Light Sand text and a sand-coloured matte part. Green means structure: borders, candidate
+lines and placed seams. Orange means action: the primary button, the hovered edge, the selected seam
+and warnings. Onest for labels, buttons and numbers, uppercase and tracked as the guideline asks, and
+42dot Sans for help text; both are self-hosted Latin subsets of about 30 KB.
 
 ## AI tooling
 
 I built this with Claude Code (Anthropic) as a pair programmer. It helped with planning,
-implementation, tests and the headless browser checks. I reviewed every module and can explain each
-choice. `docs/plans/` shows how the work was split into features, each planned before it was built.
+implementation and verification. I reviewed every module and can explain each
+choice.
 
 ---
 

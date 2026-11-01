@@ -30,7 +30,7 @@ and plan 10 are uncommitted. Candidates if there is time: 06b (cloud save) or sa
 4. On the live URL: two parts never seen before (one bracket, one organic or scanned), full flow to
    export. A session can run this with `e2e-07`-style checks once the URL exists.
 5. Licence: README ends with "All rights reserved"; change it if you want MIT.
-6. Send the email in `docs/submission-email.md` to pulkit@armatrix.com.
+6. Send the email in `docs/submission-email.md` to the address in the assignment mail.
 
 ## Done
 - [x] Read assignment, extracted palette/fonts/logos → `brand.md`

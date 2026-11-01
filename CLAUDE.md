@@ -1,7 +1,7 @@
 # Weld Seam Planner — project instructions
 
 Armatrix software-intern assignment. Spec: `Software Intern Assignment Weld Seam Planner.pdf`.
-Deadline: submit to pulkit@armatrix.com by ~2026-11-09 (7–10 days from 2026-10-31).
+Deadline: submit by ~2026-11-09 (7–10 days from 2026-10-31) to the address in the assignment mail.
 
 ## What it is
 Browser app: upload `.stl` → auto-detect candidate seams → user picks seams and sets weld

@@ -24,10 +24,9 @@ dist-ssr
 *.sw?
 samples/
 
-# Armatrix brand pack (the app ships only the subset copies in public/brand/)
-docs/02 Logo System/
-docs/03 Colours System/
-docs/04 Fonts System/
+# docs/ stays local (plans, drafts, brand pack); only the README screenshots are in the repo
+docs/*
+!docs/screenshots/
 # macOS AppleDouble metadata
 ._*
 
