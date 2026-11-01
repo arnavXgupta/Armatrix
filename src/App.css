@@ -159,6 +159,10 @@
   border-radius: var(--radius-md);
 }
 .view-presets .tool { padding: 0 8px; }
+/* Touch screens (40 px buttons) and short windows: one row, so it never runs into the toolbar below */
+@media (pointer: coarse), (max-height: 560px) {
+  .view-presets { grid-auto-flow: column; }
+}
 
 /* View toolbar, floating bottom-left over the canvas */
 .view-toolbar {
@@ -282,6 +286,7 @@
   .viewport { min-height: 62vh; min-height: max(320px, 62dvh); }
   .seams, .detail { border-top: 1px solid var(--border); }
   .detail { border-left: 0; }
+  .toolbar-title { display: none; } /* the part name needs the room; the logo stays */
   .status { position: sticky; bottom: 0; z-index: 5; }
   .dropzone { inset: 16px; }
 }
@@ -299,7 +304,6 @@
   .toolbar { flex-wrap: wrap; row-gap: 8px; gap: 8px; padding: 8px 12px; }
   .toolbar-logo { height: 12px; margin-right: auto; }
   .btn-primary, .btn-ghost { padding: 7px 10px; gap: 6px; letter-spacing: 0.04em; }
-  .toolbar-title { display: none; }
   .toolbar-part { order: 3; flex-basis: 100%; margin-left: 0; }
   .part-name { max-width: none; flex: 1; }
   .seams { border-right: 0; }
@@ -307,6 +311,9 @@
   .viewport-stage { display: flex; flex-direction: column; }
   .viewport-canvas { position: relative; inset: auto; flex: 1; min-height: 0; }
   .view-toolbar { position: static; max-width: none; margin: 0 8px 14px; padding: 2px; }
+  /* view presets join the controls under the canvas too, so nothing floats over the part on a phone */
+  .view-presets { position: static; display: flex; align-self: flex-start; margin: 0 8px 6px; padding: 2px; }
+  .viewport { min-height: max(360px, 70dvh); } /* the canvas shares this with two control rows */
   .tool { padding: 0 8px; }
   .tool-slider { flex: 1; min-width: 160px; }
   .tool-slider input { flex: 1; width: auto; min-width: 60px; }

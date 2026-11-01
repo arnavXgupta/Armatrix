@@ -2,7 +2,7 @@ import type { Units } from '../geometry/parseStl'
 
 /** A length in the part's units, with a sensible number of decimals. */
 export function formatLength(v: number, units: Units | undefined): string {
-  const n = v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toPrecision(2)
+  const n = v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v === 0 ? '0' : v.toPrecision(2)
   return units && units !== 'unknown' ? `${n} ${units}` : n
 }
 

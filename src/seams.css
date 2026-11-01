@@ -72,14 +72,15 @@
 .first-hint {
   position: absolute;
   top: 16px;
-  left: 50%;
+  left: 16px;
+  right: 104px; /* never under the axis triad: 80 px + its 12 px margin + a gap */
   z-index: 3;
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 32px);
+  width: fit-content; /* centred in that span; left: 50% + translate would halve the width it can use */
+  margin-inline: auto;
   padding: 6px 6px 6px 12px;
-  transform: translateX(-50%);
   border: 1px solid var(--border);
   background: rgba(3, 5, 0, 0.85);
   font: 400 13px/1.4 var(--font-body);
@@ -112,6 +113,7 @@
 .seam-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .seam-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   border-top: 1px solid transparent;
@@ -130,7 +132,7 @@
   cursor: grab;
 }
 .seam-main {
-  flex: 1;
+  flex: 1 1 170px; /* narrower than this, the selected row's buttons wrap under it */
   min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -147,14 +149,15 @@
   cursor: pointer;
 }
 .seam-index { grid-area: idx; font-weight: 600; font-size: 11px; letter-spacing: 0.08em; color: var(--text-muted); }
-.seam-meta { grid-area: meta; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.seam-meta { grid-area: meta; display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; } /* never under the row buttons */
 .seam-row.is-selected .seam-index { color: var(--action); }
 .seam-name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.seam-len { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-.seam-src { padding: 1px 4px; border: 1px solid var(--border); font: 600 9px/1.2 var(--font-ui); letter-spacing: 0.1em; color: var(--text-muted); }
-.seam-actions { display: flex; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
-.seam-row:hover .seam-actions, .seam-row:focus-within .seam-actions, .seam-row.is-selected .seam-actions { opacity: 1; }
-@media (hover: none) { .seam-actions { opacity: 1; } }
+.seam-spec { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text-muted); }
+.seam-src { padding: 1px 4px; border: 1px solid var(--border); font: 600 10px/1.2 var(--font-ui); letter-spacing: 0.1em; color: var(--text-muted); }
+/* Only the selected row shows its buttons: hidden buttons that kept their space cut the row's spec line short.
+   In a narrow column they wrap under the name; wide rows (stacked layouts, phones) keep them inline. */
+.seam-actions { display: flex; margin-left: auto; }
+.seam-row:not(.is-selected) .seam-actions { display: none; }
 .seam-rename {
   flex: 1;
   min-width: 0;
@@ -187,7 +190,7 @@
 .params fieldset {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px 10px;
+  gap: 6px 10px;
   margin: 0;
   padding: 10px 0 0;
   border: 0;
@@ -215,7 +218,9 @@
   font: 400 13px/1.3 var(--font-ui);
   font-variant-numeric: tabular-nums;
 }
+.field input, .field select { height: 28px; padding-block: 0; }
 .field textarea { resize: vertical; font-family: var(--font-body); }
+.joint-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 2px 0 0; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); outline: none; }
 .field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .field.is-invalid input { border-color: var(--action); }
@@ -290,7 +295,7 @@
 .issue.is-error .issue-level { color: var(--action); }
 .json-preview {
   flex: 1;
-  min-height: 140px;
+  min-height: min(140px, 18dvh); /* short landscape screens keep the actions in view */
   max-height: 38vh;
   margin: 10px 16px 0;
   padding: 10px 12px;
@@ -317,7 +322,9 @@
 .status-notice { color: var(--action); }
 .status-help {
   flex: none;
-  margin-left: auto;
+  align-self: stretch;
+  min-height: 24px;
+  margin: -4px 0 -4px auto; /* spans the bar's full height (24 px), not just the 11 px of text */
   padding: 0 2px;
   border: 0;
   background: none;
@@ -340,7 +347,7 @@
 .crash-actions { display: flex; gap: 8px; }
 
 @media (max-width: 599px) {
-  .first-hint { left: 8px; right: 8px; max-width: none; transform: none; font-size: 12px; }
+  .first-hint { left: 8px; right: 100px; font-size: 12px; }
   .job-fields { grid-template-columns: 1fr; }
   .keys div { grid-template-columns: 1fr; gap: 2px; }
   .status-help { display: none; }
@@ -376,7 +383,7 @@
 .confirm-bar, .first-hint { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
 @starting-style {
   .confirm-bar { opacity: 0; transform: translateY(-8px); }
-  .first-hint { opacity: 0; transform: translate(-50%, -8px); }
+  .first-hint { opacity: 0; transform: translateY(-8px); }
 }
 
 /* A new seam row rises into the list (dur-hover); reorders keep their keys, so they don't replay it. */
@@ -401,3 +408,87 @@
   transition: color var(--dur-fast) var(--ease-out), background-size var(--dur-fast) var(--ease-out);
 }
 .link-btn:hover { background-size: 100% 1px, 100% 1px; }
+
+/* ── Responsive fixes (4K-to-320 audit) ─────────────────────────────────────────────────────────── */
+/* Under 480 px the axis triad is 64 px, so the full-width hint can come closer. */
+@media (max-width: 479px) { .first-hint { right: 84px; } }
+
+/* The download button names the file. It stays on the button row and a long job name ends in an ellipsis,
+   instead of widening the dialog; the big grow factor gives it the free space before the spacer. */
+.dialog-actions .btn-primary { flex: 100 1 180px; min-width: 0; max-width: max-content; }
+.btn-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* On short screens the export dialog scrolls as a whole; its title bar and actions stay pinned. */
+.export-dialog .dialog-head { position: sticky; top: 0; z-index: 1; background: var(--panel); }
+.export-dialog .dialog-actions { position: sticky; bottom: 0; z-index: 1; background: var(--panel); }
+@media (max-width: 399px) {
+  .doc-stamp { display: none; } /* decorative; on the narrowest phones the title needs the line */
+  .doc-stamp + .icon-btn { margin-left: auto; }
+}
+
+/* Touch screens: 40 px targets (Apple asks 44 pt, Material 48 dp; 40 keeps the dense panels usable). */
+@media (pointer: coarse) {
+  .icon-btn, .hint-close { width: 40px; height: 40px; }
+  .btn-small, .btn-primary, .btn-ghost, .unit-select, .detail-name, .field input, .field select, .check, .issue-btn { min-height: 40px; }
+  .link-btn { position: relative; }
+  .link-btn::after { content: ""; position: absolute; inset: -10px -6px; } /* bigger tap area, same underline */
+  .status-help { display: none; } /* it opens the keyboard shortcut list */
+}
+
+/* ── Plan 10: totals card, export badge ─────────────────────────────────────────────────────────── */
+/* In the 220 px seam column the row spec drops the process; the detail panel shows it. */
+@media (min-width: 900px) and (max-width: 1279px) { .seam-proc { display: none; } }
+
+/* Brand spec card: 2 px frame, 6 px pins at the four corners, index, tracked tag, 36 px rule, orange values. */
+.totals { position: relative; container-type: inline-size; margin: 0 0 12px; padding: 10px 12px 12px; border: 2px solid var(--green-4); }
+.totals::after {
+  --pin: linear-gradient(var(--action), var(--action));
+  content: "";
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  background:
+    var(--pin) top left / 6px 6px no-repeat,
+    var(--pin) top right / 6px 6px no-repeat,
+    var(--pin) bottom left / 6px 6px no-repeat,
+    var(--pin) bottom right / 6px 6px no-repeat;
+  animation: pins-in 1.2s var(--ease-out) 0.6s both;
+}
+.totals-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 0 0 8px 6px;
+  background: linear-gradient(var(--green-4), var(--green-4)) no-repeat 6px 100% / 36px 1px;
+}
+.totals-index { font: 700 11px/1 var(--font-ui); letter-spacing: 0.08em; color: var(--text); }
+.totals-tag { font: 500 10px/1 var(--font-ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); }
+.totals-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; padding-left: 6px; }
+@container (min-width: 320px) { .totals-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.totals-grid > div { display: flex; flex-direction: column-reverse; gap: 3px; min-width: 0; }
+.totals-grid dt { font: 500 10px/1.2 var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.totals-grid dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 14px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--action);
+}
+
+/* Export badge: open problems at a glance; the dialog stays the place to fix them. */
+.export-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin: -2px 0;
+  border-radius: var(--radius-xs);
+  font: 700 11px/1 var(--font-ui);
+  letter-spacing: 0;
+  color: var(--forest);
+}
+.export-badge.is-error { background: var(--action); }
+.export-badge.is-warning { background: var(--sand-3); }

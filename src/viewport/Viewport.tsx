@@ -105,9 +105,13 @@ export default function Viewport() {
       const what = c.kind === 'boundary' ? 'open edge' : `crease ${Math.round(c.meanAngleDeg)}°`
       const action = seam ? `${seam.name} · click to select` : s.selectedSeamId ? 'click to add · shift-click to join' : 'click to add'
       t.textContent = `${what} · ${formatLength(c.length, s.part?.units)} · ${action}`
-      const r = el.getBoundingClientRect()
-      t.style.transform = `translate(${Math.min(x - r.left + 14, r.width - 260)}px, ${y - r.top + 16}px)`
       t.hidden = false
+      // Below-right of the pointer; shifted left at the right edge and flipped above it at the bottom edge.
+      const r = el.getBoundingClientRect()
+      const left = Math.max(0, Math.min(x - r.left + 14, r.width - t.offsetWidth - 4))
+      const below = y - r.top + 16
+      const top = below + t.offsetHeight > r.height ? y - r.top - t.offsetHeight - 10 : below
+      t.style.transform = `translate(${left}px, ${Math.max(0, top)}px)`
     }
     const hover = () => {
       raf = 0

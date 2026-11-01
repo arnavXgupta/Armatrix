@@ -271,7 +271,7 @@ describe('seams', () => {
     const n = st().past.length
     st().orderByNearest()
     expect(st().seams.map((s) => s.points[0][0])).toEqual([0, 10, 20])
-    expect(st().notice).toMatch(/30\.0 mm → 0\.0 mm/)
+    expect(st().notice).toMatch(/30\.0 mm → 0 mm/)
     expect(st().past).toHaveLength(n + 1)
     st().orderByNearest()
     expect(st().notice).toMatch(/No shorter order/)

@@ -1,9 +1,15 @@
+import { useMemo } from 'react'
+import { planIssues } from '../export/validate'
 import { useStore } from '../store/useStore'
 
 export default function Toolbar() {
   const part = useStore((s) => s.part)
-  const seams = useStore((s) => s.seams.length)
+  const seams = useStore((s) => s.seams)
+  const job = useStore((s) => s.job)
   const { setUnits, clearPart, setExportOpen } = useStore.getState()
+  // Nothing to report before the first seam: "no seams yet" is what the empty list already says.
+  const issues = useMemo(() => (part && seams.length > 0 ? planIssues({ part, seams, job }) : null), [part, seams, job])
+  const badge = issues && (issues.errors || issues.warnings)
 
   return (
     <header className="toolbar">
@@ -48,8 +54,22 @@ export default function Toolbar() {
         className="btn-primary"
         disabled={!part}
         onClick={() => setExportOpen(true)}
-        title={!part ? 'Load a part first' : seams === 0 ? 'Import a saved plan, or add seams to export' : 'Review and download the weld job'}
+        title={
+          !part
+            ? 'Load a part first'
+            : seams.length === 0
+              ? 'Import a saved plan, or add seams to export'
+              : badge
+                ? issues.messages.slice(0, 3).join('\n') + (issues.messages.length > 3 ? `\n+${issues.messages.length - 3} more` : '')
+                : 'Review and download the weld job'
+        }
       >
+        {badge ? (
+          <span className={`export-badge ${issues.errors ? 'is-error' : 'is-warning'}`}>
+            {badge}
+            <span className="visually-hidden">{issues.errors ? (issues.errors === 1 ? ' error, ' : ' errors, ') : issues.warnings === 1 ? ' warning, ' : ' warnings, '}</span>
+          </span>
+        ) : null}
         Export <span aria-hidden="true">→</span>
       </button>
     </header>

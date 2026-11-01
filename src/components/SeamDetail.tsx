@@ -143,11 +143,16 @@ export default function SeamDetail() {
                 ))}
               </select>
             </label>
-            {!isDefault && (
-              <button type="button" className="link-btn field-wide" onClick={() => resetParams(seam.id)}>
-                Reset to {p.weldType} · {p.process} defaults
+            <p className="joint-links field-wide">
+              <button type="button" className="link-btn apply-btn" onClick={() => applyParamsToType(seam.id)} title={`Copy these parameters to every other ${p.weldType} seam`}>
+                Apply to all {p.weldType} seams
               </button>
-            )}
+              {!isDefault && (
+                <button type="button" className="link-btn reset-btn" onClick={() => resetParams(seam.id)}>
+                  Reset to {p.weldType} · {p.process} defaults
+                </button>
+              )}
+            </p>
           </fieldset>
 
           <fieldset>
@@ -199,9 +204,6 @@ export default function SeamDetail() {
             <textarea key={seam.notes ?? ''} rows={2} defaultValue={seam.notes ?? ''} onBlur={(e) => setNotes(seam.id, e.target.value)} placeholder="For the operator" />
           </label>
 
-          <button type="button" className="btn-ghost btn-small field-wide" onClick={() => applyParamsToType(seam.id)}>
-            Apply to all {p.weldType} seams
-          </button>
         </form>
       </div>
     </aside>

@@ -1,5 +1,6 @@
 import type { Units } from '../geometry/parseStl'
 import type { WeldJob, WeldParams } from './schema'
+import { toWeldJob, type JobInput } from './toWeldJob'
 
 export type Issue = {
   level: 'error' | 'warning'
@@ -51,4 +52,12 @@ export function validateJob(job: WeldJob, ctx: { units: Units; nonManifold: numb
   if (job.summary.estimatedTimeS > 2 * 3600) warn('Estimated time is over 2 hours. Check travel speeds and passes.')
   if (ctx.nonManifold > 0) warn(`The mesh has ${ctx.nonManifold} non-manifold edges; check seams near them.`)
   return issues
+}
+
+/** The plan as it stands, checked as the export dialog checks it: counts and messages, errors first (Export badge). */
+export function planIssues(input: JobInput & { part: { nonManifold: number } }) {
+  const issues = validateJob(toWeldJob(input), { units: input.part.units, nonManifold: input.part.nonManifold })
+  const errors = issues.filter((i) => i.level === 'error')
+  const warnings = issues.filter((i) => i.level === 'warning')
+  return { errors: errors.length, warnings: warnings.length, messages: [...errors, ...warnings].map((i) => i.message) }
 }

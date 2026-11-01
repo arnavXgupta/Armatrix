@@ -53,7 +53,10 @@ export class Scene {
   private chips = new THREE.Group()
   private solid: THREE.MeshStandardMaterial
   private wire: THREE.MeshBasicMaterial
-  private lineMat = new THREE.LineBasicMaterial({ vertexColors: true })
+  private lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true })
+  private lineDim = 1 // 0.55 while a seam is selected
+  private lineFade = 1 // 0 → 1 over 600 ms when a part's candidates first arrive
+  private fadeFrame = 0
   // Dark lines on the sand mesh (brand.md's sand-4 is 1.8:1 against sand-2, near invisible; see decisions.md)
   private colors = {
     crease: token('--green'),
@@ -213,6 +216,7 @@ export class Scene {
   }
 
   setCandidates(candidates: Candidate[]) {
+    const fresh = !this.lines // a new part (setMesh cleared them), not a threshold re-chain
     if (this.lines) {
       this.offset.remove(this.lines)
       this.lines.geometry.dispose()
@@ -256,7 +260,27 @@ export class Scene {
       pickGeometry.setAttribute('color', new THREE.BufferAttribute(ids, 3))
       this.pickLines = new THREE.LineSegments(pickGeometry, this.pickMat)
       this.pickOffset.add(this.pickLines)
+      if (fresh) this.fadeInLines()
     }
+    this.requestRender()
+  }
+
+  /** Candidates fade in like the brand's pins (600 ms, ease-out); skipped under reduced motion. */
+  private fadeInLines() {
+    cancelAnimationFrame(this.fadeFrame)
+    if (reducedMotion()) return
+    const t0 = performance.now()
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t0) / 600)
+      this.lineFade = 1 - (1 - k) ** 3
+      this.applyLineOpacity()
+      if (k < 1) this.fadeFrame = requestAnimationFrame(step)
+    }
+    step()
+  }
+
+  private applyLineOpacity() {
+    this.lineMat.opacity = this.lineDim * this.lineFade
     this.requestRender()
   }
 
@@ -276,6 +300,8 @@ export class Scene {
     this.setFat(this.seamLine, seams.filter((s) => s !== selected))
     this.setFat(this.selLine, selected ? [selected] : [])
     this.selLine.material.color.copy(this.colors.selected)
+    this.lineDim = selected ? 0.55 : 1 // the selected seam and its ticks lead
+    this.applyLineOpacity()
     const r = this.radius * 0.008
     const moves = airMoves(seams).filter((m) => m.length > r)
     const air = moves.map((m) => ({ points: [m.from, m.to], closed: false }))
@@ -497,6 +523,7 @@ export class Scene {
 
   dispose() {
     clearTimeout(this.pulseTimer)
+    cancelAnimationFrame(this.fadeFrame)
     this.observer.disconnect()
     this.controls.dispose()
     this.setMesh(null)

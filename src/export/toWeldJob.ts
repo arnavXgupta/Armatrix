@@ -34,6 +34,9 @@ export function estimateTimeS(seams: { lengthMm: number; params: WeldParams }[],
   return t
 }
 
+/** One seam as the list row shows it: arc time plus the start/stop allowance, no air. */
+export const seamTimeS = (s: Pick<Seam, 'length' | 'params'>, units: Units) => estimateTimeS([{ lengthMm: s.length * mmPerUnit(units), params: s.params }])
+
 /** Store state → export document. Pure; everything in mm. */
 export function toWeldJob({ part, seams, job, createdAt = new Date().toISOString() }: JobInput): WeldJob {
   const k = mmPerUnit(part.units)

@@ -27,6 +27,16 @@ button { font: inherit; color: inherit; }
 
 :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 
+/* Scrollbars: thin, no track, a faint sand thumb that brightens on hover. The standard properties win in
+   every current browser; Chrome < 121 and Safari fall back to the ::-webkit rules. */
+* { scrollbar-width: thin; }
+:root { scrollbar-color: color-mix(in srgb, var(--sand) 18%, transparent) transparent; }
+:root:hover { scrollbar-color: color-mix(in srgb, var(--sand) 30%, transparent) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--sand) 18%, transparent); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--sand) 30%, transparent); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
 }

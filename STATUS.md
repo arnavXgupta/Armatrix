@@ -1,9 +1,9 @@
 # STATUS.md — current state of the project (read first, update last)
 
-Updated: 2026-11-01 · by: planning session (re-verified 01–08 independently; see Verify)
+Updated: 2026-11-01 · by: build session (plan 10 built; responsive audit; see Verify)
 
 ## Where we are
-Phase: plans 01–08 built and verified locally. What is left needs the user: deploy, the recording, the
+Phase: plans 01–10 built and verified locally. What is left needs the user: deploy, the recording, the
 unseen-part checks on the live URL, the licence choice, and sending the email.
 Plans 01–08 are committed and pushed to `origin/main`; history was rewritten on 2026-11-01 to drop the
 brand pack and the assignment PDF (see decisions.md).
@@ -13,15 +13,18 @@ seams → list with drag reorder, rename, delete, order chips → parameter form
 with validation, JSON preview, download, import (hash-checked) → autosave and restore on reload → error
 boundary, shortcuts (`?`), first-run hint, drop-zone links to the README → (plan 08) undo/redo,
 dashed air moves with an air total, order by nearest, torch ticks on the selected seam, view presets
-1–4 and an axis triad, export schema 1.1 (`summary.airTravelMm`).
+1–4 and an axis triad, export schema 1.1 (`summary.airTravelMm`) → (plan 10) rows as job lines with a
+totals card, an issue count on Export, candidates that step back while a seam is selected.
 
-Current plan: none. Plan 09 (in-app "How it works" / "Export schema" cards) is built and verified,
-uncommitted. Candidates if there is time: 06b (cloud save) or sample parts in the empty state.
+Current plan: none open. Plan 10 (`docs/plans/10-list-density-contrast-totals.md`) is built and verified,
+uncommitted: job-table rows, totals card, Export badge, Apply link in Joint, candidates dim while a seam
+is selected. Plan 09 is built and pushed; the scrollbar change in `base.css`, the responsive-audit fixes
+and plan 10 are uncommitted. Candidates if there is time: 06b (cloud save) or sample parts in the empty state.
 
 ## Next action (user)
 1. Pushed. The brand pack and PDF are out of history; keep them out (both are gitignored).
-2. Deploy (Vercel, framework Vite, defaults). Paste the URL into `README.md` ("Live app" line) and
-   `docs/submission-email.md`.
+2. ~~Deploy~~ done: https://armatrix-weld-seam-planner.vercel.app/ (in README and the email). Push to
+   redeploy with the latest fixes.
 3. Record from `docs/recording-script.md`, upload unlisted, paste the link into both files.
 4. On the live URL: two parts never seen before (one bracket, one organic or scanned), full flow to
    export. A session can run this with `e2e-07`-style checks once the URL exists.
@@ -40,9 +43,20 @@ uncommitted. Candidates if there is time: 06b (cloud save) or sample parts in th
 - [x] 06 persistence + polish (deploy parked)
 - [ ] 06b optional cloud save (not started)
 - [~] 07 README, screenshots, recording script, email draft done; recording, live checks, sending left
-- [x] 08 order, direction, undo, views (uncommitted)
+- [x] 08 order, direction, undo, views
+- [x] 09 in-app help cards, motion layer
+- [x] 10 list density, panel fit, candidate contrast, export badge, totals card (uncommitted)
 
 ## Verify
+- 2026-11-01 plan 10: vitest 86/86, oxlint 0, tsc clean, build OK (no `__wsp` in the bundle); browser
+  suites e2e-04 28, 05 26, 06 21, resp 20, restore 5, export3 5, 07 21, 08 53, 10 31, prod 7, perf 7, all
+  green; responsive audit 35 viewports, 0 issues; contrast checked on the fan, the noisy scan at 5° and
+  the 1M part at 1920. e2e-07 used to log a crash and still count as passed; it now fails on a crash.
+- 2026-11-01 responsive audit (`resp-audit.mjs` in the session scratch folder): 35 viewports, 4K to 320 px,
+  touch on phones/tablets, 13 states each; 0 issues after the fixes in decisions.md "Responsive audit";
+  uncommitted. 18 desktop/4K/tablet sizes rerun after the seam-row fix (900–1279 px and touch): all 0. Live URL https://armatrix-weld-seam-planner.vercel.app/ serves the last pushed commit.
+- 2026-11-01 scrollbars thin/faint (base.css), checked at 1280×720 on the detail panel and the JSON
+  preview with `ignoreDefaultArgs: ['--hide-scrollbars']`; uncommitted.
 - 2026-11-01 motion pass (brand fast layer: pins, dialogs, confirm bar, hint, rows, notices, links): probe
   read opacity 0→1 on pins, dialog open/close and new rows; e2e-04/05/06/07 green afterwards.
 - 2026-11-01 plan 09: vitest 83/83 (new `schemaRows.ts` drift test), lint, build; e2e-07 21/21 with

@@ -4,7 +4,7 @@ import type { WeldJob } from '../export/schema'
 import { formatJob, toWeldJob } from '../export/toWeldJob'
 import { validateJob, type Issue } from '../export/validate'
 import { useStore } from '../store/useStore'
-import { formatDuration } from '../ui/format'
+import { formatDuration, formatLength } from '../ui/format'
 
 const PREVIEW_CHARS = 200_000
 
@@ -104,8 +104,8 @@ export default function ExportDialog() {
       </div>
 
       <p className="job-summary">
-        {weldJob.summary.seamCount} {weldJob.summary.seamCount === 1 ? 'seam' : 'seams'} · {weldJob.summary.totalLengthMm} mm
-        {weldJob.summary.seamCount > 1 && ` · air ${weldJob.summary.airTravelMm} mm`} · est.{' '}
+        {weldJob.summary.seamCount} {weldJob.summary.seamCount === 1 ? 'seam' : 'seams'} · {formatLength(weldJob.summary.totalLengthMm, 'mm')}
+        {weldJob.summary.seamCount > 1 && ` · air ${formatLength(weldJob.summary.airTravelMm, 'mm')}`} · est.{' '}
         {formatDuration(weldJob.summary.estimatedTimeS)} · coordinates in mm, part frame, Z up
       </p>
 
@@ -158,8 +158,8 @@ export default function ExportDialog() {
         <button type="button" className="btn-ghost btn-small" onClick={copy}>
           {copied ? 'Copied' : 'Copy JSON'}
         </button>
-        <button type="button" className="btn-primary" onClick={download} disabled={errors.length > 0}>
-          Download {fileName} <span aria-hidden="true">→</span>
+        <button type="button" className="btn-primary" onClick={download} disabled={errors.length > 0} title={`Download ${fileName}`}>
+          <span className="btn-label">Download {fileName}</span> <span aria-hidden="true">→</span>
         </button>
       </footer>
     </dialog>

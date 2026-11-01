@@ -5,8 +5,8 @@ import { seamFromPoints, type Seam } from '../store/seams'
 import { defaultParams } from './defaults'
 import { parseWeldJob, seamsFromJob } from './fromWeldJob'
 import { PROCESSES, SCHEMA_VERSION, WELD_TYPES, type WeldJob } from './schema'
-import { GENERATOR, estimateTimeS, formatJob, toWeldJob } from './toWeldJob'
-import { validateJob } from './validate'
+import { GENERATOR, estimateTimeS, formatJob, seamTimeS, toWeldJob } from './toWeldJob'
+import { planIssues, validateJob } from './validate'
 
 const up: Vec3 = [0, 0, 1]
 const seam = (id: string, name: string, pts: Vec3[], closed = false): Seam =>
@@ -85,6 +85,12 @@ describe('toWeldJob', () => {
     expect(estimateTimeS([{ lengthMm: 60, params: { ...defaultParams(), passes: 3 } }])).toBe(60 / 6 * 3 + 4)
     expect(estimateTimeS([{ lengthMm: 60, params: defaultParams() }], 250)).toBe(60 / 6 + 4 + 2.5)
   })
+
+  test('seamTimeS is estimateTimeS for one seam, in mm, with no air', () => {
+    const [a] = twoSeams()
+    expect(seamTimeS(a, 'mm')).toBe(estimateTimeS([{ lengthMm: 100, params: a.params }]))
+    expect(seamTimeS(a, 'in')).toBe(estimateTimeS([{ lengthMm: 2540, params: a.params }]))
+  })
 })
 
 describe('validateJob', () => {
@@ -117,6 +123,23 @@ describe('validateJob', () => {
     expect(issues.map((i) => i.field ?? i.message)).toEqual(
       expect.arrayContaining(['wireFeedMMin', 'travelAngleDeg', 'approachMm', expect.stringMatching(/over 2 hours/), expect.stringMatching(/non-manifold/)]),
     )
+  })
+})
+
+describe('planIssues (Export badge)', () => {
+  const input = (seams = twoSeams(), units: Units = 'mm', nonManifold = 0) => ({ part: { ...part(units), nonManifold }, seams, job })
+  test('a clean plan counts 0 / 0', () => {
+    expect(planIssues(input())).toEqual({ errors: 0, warnings: 0, messages: [] })
+  })
+  test('counts match validateJob, errors listed first', () => {
+    const s = twoSeams()
+    s[1].name = 'S-01'
+    s[0].params = { ...s[0].params, approachMm: 2 }
+    const r = planIssues(input(s))
+    expect([r.errors, r.warnings]).toEqual([2, 1])
+    expect(r.messages[0]).toMatch(/used by another seam/)
+    expect(r.messages[2]).toMatch(/approach under 5 mm/)
+    expect(planIssues(input(twoSeams(), 'unknown', 3))).toMatchObject({ errors: 1, warnings: 1 })
   })
 })
 

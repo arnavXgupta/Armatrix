@@ -7,9 +7,9 @@ your browser.
 
 Built for the Armatrix software intern assignment.
 
-**Live app:** not deployed yet, [run it locally](#run-it-locally) · **Walkthrough video:** to be recorded
+**Live app:** [armatrix-weld-seam-planner.vercel.app](https://armatrix-weld-seam-planner.vercel.app/) · **Walkthrough video:** to be recorded
 
-![T-joint weldment with four seams. The selected L-shaped gusset seam is orange with torch-direction ticks, numbered chips show the weld order, dashed lines show the moves between seams, an axis triad and view buttons sit top right, and the parameter form is on the right.](docs/screenshots/planner.png)
+![T-joint weldment with four seams. The selected L-shaped gusset seam is orange with torch-direction ticks, numbered chips show the weld order, dashed lines show the moves between seams, an axis triad and view buttons sit top right, and the parameter form is on the right. Above the seam list a totals card reads 4 seams, 400 mm, 1 min 23 s weld time and 233 mm air travel; each row reads like "120 mm · fillet · GMAW · 24 s".](docs/screenshots/planner.png)
 
 ## Contents
 
@@ -48,8 +48,9 @@ node scripts/gen-samples.mjs samples   # write the synthetic test parts into sam
 
 1. **Load a part.** Drop an `.stl` on the page or click to browse. Binary and ASCII both work, up to
    250 MB. Check the units in the toolbar: `mm`, `in` or `m`. A dashed outline means the app guessed.
-2. **Find seams.** Dark lines on the part are candidate seams. The angle slider sets how sharp an edge
-   must be to count. Lower it to see more edges, raise it to see fewer.
+2. **Find seams.** Dark lines on the part are candidate seams. They fade back while a seam is selected.
+   The angle slider sets how sharp an edge must be to count. Lower it to see more edges, raise it to
+   see fewer.
 3. **Pick seams.** Hover a line to see it in orange with its length and angle. Click to add it as a
    seam. Shift-click a touching line to extend the selected seam. Where no line fits, press `M` and
    click points on the part, then press `Enter`.
@@ -58,12 +59,16 @@ node scripts/gen-samples.mjs samples   # write the synthetic test parts into sam
    "Order by nearest" shortens those moves. `F` flips a seam's direction. `Ctrl + Z` undoes any seam
    edit.
 5. **Set parameters.** Select a seam to edit its weld type, process, speeds, angles, weave and arc
-   settings. "Apply to all fillet seams" copies them to every seam of that type.
-6. **Export.** Open Export, fix any errors it lists, then download `<job>-weldjob.json`. Import in the
+   settings. "Apply to all fillet seams", under the weld type, copies them to every seam of that type.
+6. **Export.** A count on the Export button says how many problems wait: orange for errors, sand for
+   warnings. Open Export, fix any errors it lists, then download `<job>-weldjob.json`. Import in the
    same dialog loads a saved job back onto the same part.
 
 The plan saves as you work. Reloading the tab brings back the part, the seams and their settings.
 Press `?` in the app for every shortcut.
+
+The same walkthrough, and the field table below, are one click away inside the app: **How it works** and
+**Export schema** in the empty state.
 
 <details>
 <summary><em>All keyboard and mouse controls</em></summary>
@@ -109,7 +114,10 @@ re-chains them without reloading the part. Only edges you can see can be picked.
 
 - Click to add an edge, shift-click to join one on.
 - Draw a seam point by point; click the first point to close a loop.
-- Rename, reorder (drag or keys), flip and delete seams.
+- Rename, reorder (drag or keys), flip and delete seams. The selected row carries the move and delete
+  buttons.
+- Each row reads as a line of the job: length, weld type, process and time (`120 mm · fillet · GMAW ·
+  24 s`). A totals card above the list adds up seams, length, weld time and air travel.
 - Undo and redo every seam edit, 50 steps back, with `Ctrl + Z` or the arrows above the list.
 - Replacing a part that has seams asks first.
 
@@ -117,7 +125,7 @@ re-chains them without reloading the part. Only edges you can see can be picked.
 
 - Dashed lines with arrowheads show each move from one seam's end to the next seam's start. They draw
   through the part, so a move behind it still shows.
-- The status bar and the export carry the total of those moves (air travel).
+- The totals card and the export carry the total of those moves (air travel).
 - "Order by nearest" reorders the seams so each starts near where the last one ended. The first seam
   stays first. An open seam may be reversed; a loop keeps its start point.
 - The selected seam shows short ticks along its torch direction.
@@ -132,12 +140,12 @@ own X, Y and Z.
 - Defaults depend on weld type and process.
 - A number field refuses letters.
 - Settings copy to every seam of the same weld type.
-- The status bar estimates the total weld time, including the moves between seams.
+- The status bar estimates the job's total time: the seams' weld time plus the moves between them.
 
 **Export and import.**
 
 - Validation lists errors, which block the download, and warnings, which don't. Clicking an issue
-  jumps to its field.
+  jumps to its field. The Export button shows their count before you open it.
 - The dialog shows a JSON preview, copy and download.
 - Import checks the part's SHA-256 and asks before applying a plan made for a different part.
 
@@ -147,7 +155,7 @@ blocked, it says "autosave off" and keeps working.
 
 **Interface.**
 
-- Responsive from 320 px phones (touch orbit and zoom) to 1920 px desktops.
+- Responsive from 320 px phones (touch orbit and zoom) to 4K screens, with 40 px targets on touch.
 - Keyboard shortcuts for every seam action, and a first-run hint.
 - A crash screen that still lets you download your plan.
 - Reduced-motion support.
@@ -269,6 +277,11 @@ What a reader can rely on:
 - **Rounding.** Coordinates and lengths are rounded to 0.001 mm, with more decimals for parts under about 100 mm
   across. Normals are rounded to 6 decimals.
 
+<details>
+<summary><em>Example: the T-joint sample with four seams (abridged)</em></summary>
+
+<br>
+
 Example: the T-joint sample with its four seams. Two are shown here; the other two have the same shape.
 Regenerate the part with `node scripts/gen-samples.mjs samples` and its `sha256` matches this one.
 
@@ -366,6 +379,8 @@ Regenerate the part with `node scripts/gen-samples.mjs samples` and its `sha256`
 turns at the corner, where the torch moves from the plate to the web. The 232.6 mm of air travel is
 10 mm across the web's foot, then two long moves to each gusset; "Order by nearest" would shorten it.
 
+</details>
+
 `?` after a field name means the field can be absent. A unit column entry means every value of that
 field is in that unit.
 
@@ -435,13 +450,16 @@ field is in that unit.
 - candidate chaining and contact faces, with exact candidate counts on the generated parts
 - seam operations: join in all four end pairings, flip, loop start, geometric ownership
 - the store: load races, join and toggle rules, manual mode, replace-part prompts, apply-to-type, import
-- export: defaults for every weld type and process, unit scaling, every validation rule, round trip
+- export: defaults for every weld type and process, unit scaling, every validation rule, round trip, the
+  per-seam time in the list and the issue count on the Export button
 - storage, with in-memory stubs for `localStorage` and IndexedDB, including quota errors
 - brand tokens against `brand.md`, and this README's schema table against `schema.ts`
 
 The app was also checked end to end in headless Chrome (puppeteer-core with the real GPU). The checks
-drop real files, click, drag, type, reload and download. 172 checks pass across the dev server and the
-production build, at widths from 360 px with touch to 1440 px.
+drop real files, click, drag, type, reload and download. 203 checks pass across the dev server and the
+production build. A layout audit then checks every visible element in 13 app states at 35 window sizes,
+from 3840 × 2160 down to 320 × 568, with touch on phones and tablets: overflow, clipping, overlap, text
+size and tap-target size.
 
 <details>
 <summary><em>Test parts and what each one exercises</em></summary>
@@ -478,6 +496,7 @@ synthetic ones with `node scripts/gen-samples.mjs samples`.
 | Restore | 5 | The fan and the 52.6 MB part restore from IndexedDB |
 | Export on three parts | 5 | T-joint, fan and tube export valid jobs |
 | Order, direction, undo, views | 53 | Air lines and totals, order by nearest and its undo, undo/redo by key and button, text fields keep their own undo, torch ticks lean off both plates, ≤ 64 ticks on a 1,024-point loop with no frame-time cost, view presets in both projections, triad at three widths, schema 1.1 download |
+| List, totals and badge | 31 | Row lines and their times, Notes and Apply in view at 1280 × 730, export summary equal to the totals card, Export badge counts and colours, candidates dimmed while a seam is selected and faded in on load, the 220 px column drops the process |
 | Production build | 7 | Same flows on `vite preview`, including a 64-character SHA-256 |
 
 Measured on the development laptop, 1M-triangle part:

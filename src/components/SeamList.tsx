@@ -1,6 +1,39 @@
 import { useEffect, useRef, useState } from 'react'
+import { seamTimeS } from '../export/toWeldJob'
+import type { Units } from '../geometry/parseStl'
+import type { Seam } from '../store/seams'
+import { airTravel } from '../store/sequence'
 import { useStore } from '../store/useStore'
-import { formatLength } from '../ui/format'
+import { formatDuration, formatLength } from '../ui/format'
+
+const known = (u: Units | undefined): u is 'mm' | 'in' | 'm' => u !== undefined && u !== 'unknown'
+
+/** Brand spec card: the plan's totals, under the list header. Times need known units, as in the status bar. */
+function Totals({ seams, units }: { seams: Seam[]; units: Units | undefined }) {
+  const weld = seams.reduce((t, s) => t + seamTimeS(s, units ?? 'unknown'), 0)
+  const rows = [
+    ['seams', 'Seams', String(seams.length)],
+    ['length', 'Length', formatLength(seams.reduce((t, s) => t + s.length, 0), units)],
+    ['weld', 'Weld time', known(units) ? formatDuration(weld) : '—'],
+    ['air', 'Air travel', seams.length > 1 ? formatLength(airTravel(seams), units) : '—'],
+  ]
+  return (
+    <section className="totals" aria-label="Plan totals" title="Weld time: arc time plus a start/stop allowance per seam. The status bar's estimate adds the air moves.">
+      <p className="totals-head">
+        <span className="totals-index">/TOTALS</span>
+        <span className="totals-tag">Weld job</span>
+      </p>
+      <dl className="totals-grid">
+        {rows.map(([k, label, value]) => (
+          <div key={k} data-total={k}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
 
 export default function SeamList() {
   const seams = useStore((s) => s.seams)
@@ -15,8 +48,15 @@ export default function SeamList() {
   const dragId = useRef<string | null>(null) // synchronous copy: drag events can outrun a re-render
   const list = useRef<HTMLOListElement>(null)
 
+  // Bring the selected row into view inside the panel only. scrollIntoView would also scroll the page on
+  // stacked (tablet/phone) layouts, moving the canvas away from a seam the user just tapped in it.
   useEffect(() => {
-    list.current?.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' })
+    const row = list.current?.querySelector('.is-selected')
+    const panel = row?.closest('.panel')
+    if (!row || !panel || panel.scrollHeight <= panel.clientHeight) return
+    const r = row.getBoundingClientRect(), p = panel.getBoundingClientRect()
+    if (r.top < p.top) panel.scrollTop -= p.top - r.top
+    else if (r.bottom > p.bottom) panel.scrollTop += r.bottom - p.bottom
   }, [selected])
 
   return (
@@ -36,6 +76,7 @@ export default function SeamList() {
           </span>
         )}
       </div>
+      {seams.length > 0 && <Totals seams={seams} units={units} />}
       {seams.length === 0 ? (
         <p className="panel-empty">
           {hasPart
@@ -107,14 +148,15 @@ export default function SeamList() {
                         setEditing(s.id)
                       }
                     }}
-                    title="Click to select · double-click or F2 to rename · drag to reorder"
+                    title={`${s.source === 'auto' ? 'Detected edge' : 'Drawn by hand'} · click to select · double-click or F2 to rename · drag to reorder`}
                   >
                     <span className="seam-index">/{String(i + 1).padStart(3, '0')}</span>
                     <span className="seam-name">{s.name}</span>
                     <span className="seam-meta">
-                      <span className="seam-len">{formatLength(s.length, units)}</span>
-                      <span className="seam-src" title={s.source === 'auto' ? 'Picked from a detected edge' : 'Drawn by hand'}>
-                        {s.source === 'auto' ? 'AUTO' : 'MANUAL'}
+                      <span className="seam-spec">
+                        {formatLength(s.length, units)} · {s.params.weldType}
+                        <span className="seam-proc"> · {s.params.process}</span>
+                        {known(units) && ` · ${formatDuration(seamTimeS(s, units))}`}
                       </span>
                       {s.closed && <span className="seam-src">LOOP</span>}
                     </span>
