@@ -3,9 +3,10 @@
 Updated: 2026-11-01 · by: build session (plan 10 built; responsive audit; see Verify)
 
 ## Where we are
-Phase: plans 01–10 built and verified locally. What is left needs the user: deploy, the recording, the
-unseen-part checks on the live URL, the licence choice, and sending the email.
-Plans 01–08 are committed and pushed to `origin/main`; history was rewritten on 2026-11-01 to drop the
+Phase: plans 01–10 built, verified and pushed; live at https://armatrix-weld-seam-planner.vercel.app/ (the
+production suite passes against it: 7/7 on 2026-11-01). Left for the user: the recording, two unseen parts on
+the live URL by hand, the licence choice, and sending the email.
+Plans 01–10 are committed and pushed to `origin/main`; README is ordered around the assignment's four asks; history was rewritten on 2026-11-01 to drop the
 brand pack and the assignment PDF (see decisions.md).
 
 What works: load an STL → candidate seams → hover / click to add / shift-click to join / M for manual
@@ -16,8 +17,8 @@ dashed air moves with an air total, order by nearest, torch ticks on the selecte
 1–4 and an axis triad, export schema 1.1 (`summary.airTravelMm`) → (plan 10) rows as job lines with a
 totals card, an issue count on Export, candidates that step back while a seam is selected.
 
-Current plan: none open. Plan 10 (`docs/plans/10-list-density-contrast-totals.md`) is built and verified,
-uncommitted: job-table rows, totals card, Export badge, Apply link in Joint, candidates dim while a seam
+Current plan: none open. Plan 10 (`docs/plans/10-list-density-contrast-totals.md`) is built, verified and
+pushed: job-table rows, totals card, Export badge, Apply link in Joint, candidates dim while a seam
 is selected. Plan 09 is built and pushed; the scrollbar change in `base.css`, the responsive-audit fixes
 and plan 10 are uncommitted. Candidates if there is time: 06b (cloud save) or sample parts in the empty state.
 

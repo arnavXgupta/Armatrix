@@ -15,14 +15,16 @@ Built for the Armatrix software intern assignment.
 
 - [Run it locally](#run-it-locally)
 - [Use it](#use-it)
-- [What's built](#whats-built)
-- [How it's built](#how-its-built)
-- [How seam detection works](#how-seam-detection-works)
-- [Weld job JSON](#weld-job-json)
+- [Features](#features)
+- [Architecture and design decisions](#architecture-and-design-decisions)
+- [Weld job JSON schema](#weld-job-json-schema)
 - [Testing](#testing)
-- [Key decisions](#key-decisions)
 - [Brand](#brand)
 - [AI tooling](#ai-tooling)
+
+The assignment asks the README for four things: how to run it, the architecture and key decisions and why,
+the features, and the export schema with every field explained. Those are the first five sections, in that
+order after the walkthrough; the rest is supporting material.
 
 ## Run it locally
 
@@ -97,7 +99,7 @@ The same walkthrough, and the field table below, are one click away inside the a
 
 </details>
 
-## What's built
+## Features
 
 **Loading.** Reads binary and ASCII STL in a Web Worker, with a progress line. It copes with:
 
@@ -172,7 +174,7 @@ blocked, it says "autosave off" and keeps working.
 - animated playback of the weld sequence
 - snapping manual points to edges
 
-## How it's built
+## Architecture and design decisions
 
 Vite, React 18, TypeScript, plain three.js and zustand. No UI kit and no CSS framework.
 
@@ -220,7 +222,7 @@ The full log of choices and rejected alternatives is in [`decisions.md`](decisio
 and state model are in [`flow.md`](flow.md). Each feature's plan, with its test results, is in
 [`docs/plans/`](docs/plans/).
 
-## How seam detection works
+### How seam detection works
 
 Welds run where two surfaces meet at an angle, or along the open edge of a plate. In a mesh, those are
 the edges whose two triangles face different directions. Detection lives in `src/geometry/`.
@@ -258,7 +260,21 @@ Picking uses the GPU. A second scene draws a depth-only copy of the part and the
 line coloured with its id. Only a 13 × 13 px window around the pointer is rendered and read back.
 Hidden edges can't be picked, and a pick costs 2–6 ms on a 1M-triangle part.
 
-## Weld job JSON
+### Key decisions
+
+- **Plain three.js, not react-three-fiber.** The render loop and picking stay visible in plain code.
+- **Geometry as pure typed-array functions in a worker.** They can be tested in Node, and a 1M-triangle
+  part never blocks the page.
+- **GPU picking instead of raycasting lines.** A line raycast also hits edges behind the part.
+- **Seams own their points.** Candidates are re-derived and their ids change with the slider, so the
+  app matches a seam to its edge by geometry, not by stored ids. Export never depends on re-running
+  detection.
+- **One document for export and autosave.** It is always in mm, in the part's frame, and tied to the
+  part's SHA-256. A future backend stores the same document.
+
+Every other decision, with the alternative it rejected, is in [`decisions.md`](decisions.md).
+
+## Weld job JSON schema
 
 The export format is defined in [`src/export/schema.ts`](src/export/schema.ts), with a one-line comment
 on every field. The table below is generated from those comments, and a test fails if the two drift.
@@ -515,20 +531,6 @@ dependency.
 **Known limitations:** Chrome and Edge only so far; Firefox and Safari haven't been checked. Weld
 parameters are starting values, not a qualified welding procedure. Plans are saved in this browser
 only.
-
-## Key decisions
-
-- **Plain three.js, not react-three-fiber.** The render loop and picking stay visible in plain code.
-- **Geometry as pure typed-array functions in a worker.** They can be tested in Node, and a 1M-triangle
-  part never blocks the page.
-- **GPU picking instead of raycasting lines.** A line raycast also hits edges behind the part.
-- **Seams own their points.** Candidates are re-derived and their ids change with the slider, so the
-  app matches a seam to its edge by geometry, not by stored ids. Export never depends on re-running
-  detection.
-- **One document for export and autosave.** It is always in mm, in the part's frame, and tied to the
-  part's SHA-256. A future backend stores the same document.
-
-Every other decision, with the alternative it rejected, is in [`decisions.md`](decisions.md).
 
 ## Brand
 
