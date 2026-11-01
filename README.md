@@ -151,6 +151,8 @@ blocked, it says "autosave off" and keeps working.
 - Keyboard shortcuts for every seam action, and a first-run hint.
 - A crash screen that still lets you download your plan.
 - Reduced-motion support.
+- "How it works" and "Export schema" cards in the empty state. The schema card is generated from the
+  same JSDoc as the table below.
 
 **Not built:**
 

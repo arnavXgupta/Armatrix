@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { PlanDocument } from '../storage/types'
-
-const README = 'https://github.com/arnavXgupta/Armatrix'
+import { useStore } from '../store/useStore'
 
 type Props = {
   onFile: (file: File) => void
@@ -13,6 +12,7 @@ type Props = {
 
 export default function DropZone({ onFile, error, busy, savedPlan, onDiscardSaved }: Props) {
   const [over, setOver] = useState(false)
+  const setInfoOpen = useStore((s) => s.setInfoOpen)
   const seams = savedPlan?.job.seams.length ?? 0
 
   return (
@@ -65,13 +65,14 @@ export default function DropZone({ onFile, error, busy, savedPlan, onDiscardSave
             <span className="dropzone-cta">Drop an .stl or click to browse</span>
             <span className="dropzone-hint">Binary or ASCII, up to 250 MB. Read in your browser; nothing is uploaded.</span>
             <span className="dropzone-hint dropzone-links">
-              <a href={`${README}#how-seam-detection-works`} target="_blank" rel="noreferrer">
+              {/* preventDefault: a click inside the label would otherwise open the file picker */}
+              <button type="button" className="link-btn" onClick={(e) => (e.preventDefault(), setInfoOpen('how'))}>
                 How it works
-              </a>
+              </button>
               {' · '}
-              <a href={`${README}#weld-job-json`} target="_blank" rel="noreferrer">
+              <button type="button" className="link-btn" onClick={(e) => (e.preventDefault(), setInfoOpen('schema'))}>
                 Export schema
-              </a>
+              </button>
             </span>
           </>
         )}

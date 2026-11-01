@@ -4,6 +4,7 @@ import './seams.css'
 import ConfirmBar from './components/ConfirmBar'
 import DropZone from './components/DropZone'
 import ExportDialog from './components/ExportDialog'
+import InfoDialog from './components/InfoDialog'
 import SeamDetail from './components/SeamDetail'
 import SeamList from './components/SeamList'
 import ShortcutsHelp from './components/ShortcutsHelp'
@@ -86,6 +87,7 @@ export default function App() {
       <StatusBar />
       {exportOpen && <ExportDialog />}
       <ShortcutsHelp />
+      <InfoDialog />
     </div>
   )
 }

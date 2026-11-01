@@ -31,6 +31,7 @@ export type Part = {
 }
 export type Status = { kind: 'idle' | 'loading' | 'ready' | 'restored' | 'error'; message: string; progress?: number }
 export type Mode = 'pick' | 'manual'
+export type Info = 'how' | 'schema'
 /** An action waiting for the user's yes in the confirm bar. */
 export type Pending = { message: string; confirm: string; run: () => void }
 type Ui = { wireframe: boolean; ortho: boolean; showCandidates: boolean; angleThreshold: number }
@@ -59,6 +60,7 @@ export type StoreState = {
   job: JobMeta
   exportOpen: boolean
   helpOpen: boolean
+  infoOpen: Info | null // 'how' / 'schema' cards from the drop zone
   savedPlan: PlanDocument | null // restored plan whose STL bytes are missing: waits for the file
   autosaveError: string | null
 
@@ -98,6 +100,7 @@ export type StoreState = {
   setNotice(message: string | null): void
   setExportOpen(open: boolean): void
   setHelpOpen(open: boolean): void
+  setInfoOpen(info: Info | null): void
 }
 
 export const IDLE: Status = { kind: 'idle', message: 'Drop an .stl into the viewport to start.' }
@@ -183,6 +186,7 @@ export const useStore = create<StoreState>()((set, get) => {
     job: newJob(),
     exportOpen: false,
     helpOpen: false,
+    infoOpen: null,
     savedPlan: null,
     autosaveError: null,
 
@@ -551,6 +555,10 @@ export const useStore = create<StoreState>()((set, get) => {
 
     setHelpOpen(open) {
       set({ helpOpen: open })
+    },
+
+    setInfoOpen(info) {
+      set({ infoOpen: info })
     },
   }
 })

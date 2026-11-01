@@ -15,8 +15,8 @@ boundary, shortcuts (`?`), first-run hint, drop-zone links to the README → (pl
 dashed air moves with an air total, order by nearest, torch ticks on the selected seam, view presets
 1–4 and an axis triad, export schema 1.1 (`summary.airTravelMm`).
 
-Current plan: none. Plan 08 is done (`docs/plans/08-order-direction-undo-views.md`, outcome at the end).
-Candidates if there is time: 06b (cloud save) or a small 09 (sample parts in the empty state).
+Current plan: none. Plan 09 (in-app "How it works" / "Export schema" cards) is built and verified,
+uncommitted. Candidates if there is time: 06b (cloud save) or sample parts in the empty state.
 
 ## Next action (user)
 1. Pushed. The brand pack and PDF are out of history; keep them out (both are gitignored).
@@ -43,6 +43,10 @@ Candidates if there is time: 06b (cloud save) or a small 09 (sample parts in the
 - [x] 08 order, direction, undo, views (uncommitted)
 
 ## Verify
+- 2026-11-01 motion pass (brand fast layer: pins, dialogs, confirm bar, hint, rows, notices, links): probe
+  read opacity 0→1 on pins, dialog open/close and new rows; e2e-04/05/06/07 green afterwards.
+- 2026-11-01 plan 09: vitest 83/83 (new `schemaRows.ts` drift test), lint, build; e2e-07 21/21 with
+  the card checks (opens, no file picker, Esc and × close, 48 rows, version shown); shots at 1440 and 390.
 - 2026-11-01 planning session re-run: vitest 82/82, oxlint clean, build clean (807 kB JS, 218 kB gzip);
   e2e-04 28/28, e2e-05 26/26, e2e-06 21/21, e2e-08 53/53, e2e-resp 20/20, e2e-restore 5/5,
   e2e-export3 5/5, e2e-perf 7/7, e2e-prod 7/7 (`vite preview --port 4199`); the six downloaded jobs

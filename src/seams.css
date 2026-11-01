@@ -224,7 +224,7 @@
 .check input { accent-color: var(--accent); }
 
 /* Dialogs */
-.export-dialog, .help-dialog {
+.export-dialog, .help-dialog, .info-dialog {
   width: min(780px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   padding: 0;
@@ -236,7 +236,36 @@
 }
 .export-dialog[open] { display: flex; flex-direction: column; }
 .help-dialog { width: min(560px, calc(100vw - 24px)); }
-.export-dialog::backdrop, .help-dialog::backdrop { background: rgba(3, 5, 0, 0.7); }
+.export-dialog::backdrop, .help-dialog::backdrop, .info-dialog::backdrop { background: rgba(3, 5, 0, 0.7); }
+.info-dialog { width: min(860px, calc(100vw - 24px)); }
+.info-dialog[open] { display: flex; flex-direction: column; }
+.info-body { overflow: auto; padding: 14px 16px 18px; font: 400 13px/1.5 var(--font-body); color: var(--text-muted); }
+.info-body h3 { margin: 16px 0 6px; font: 600 11px/1 var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
+.info-body h3:first-child { margin-top: 0; }
+.info-body p { margin: 0 0 8px; }
+.info-steps { display: grid; gap: 6px; margin: 0; padding-left: 22px; }
+.info-steps b { font-weight: 500; color: var(--text); }
+.info-list { display: grid; gap: 4px; margin: 0 0 12px; padding-left: 18px; }
+.info-list b { font-weight: 500; color: var(--text); }
+.schema-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.schema-table th, .schema-table td { padding: 5px 8px; border-top: 1px solid var(--border); text-align: left; vertical-align: top; }
+.schema-table th { font: 600 10px/1 var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
+.schema-table code { font: 400 11.5px var(--font-mono); color: var(--sand-1); overflow-wrap: anywhere; }
+@media (min-width: 641px) {
+  /* fixed shares so the long nested names deep in the table don't squeeze Meaning into a sliver */
+  .schema-table th:nth-child(1), .schema-table td:nth-child(1) { width: 31%; }
+  .schema-table th:nth-child(2), .schema-table td:nth-child(2) { width: 26%; }
+  .schema-table th:nth-child(3), .schema-table td:nth-child(3) { width: 5%; white-space: nowrap; }
+}
+@media (max-width: 640px) {
+  /* one card per field: name + type on the first line, unit under the type, meaning below */
+  .schema-table thead { display: none; }
+  .schema-table tr { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 0; border-top: 1px solid var(--border); }
+  .schema-table td { display: block; padding: 0; border: 0; }
+  .schema-table td:nth-child(2) { text-align: right; }
+  .schema-table td:nth-child(3) { grid-area: 2 / 2; text-align: right; color: var(--text); }
+  .schema-table td:nth-child(4) { grid-column: 1 / -1; }
+}
 .dialog-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .dialog-head .panel-title { margin: 0; }
 .dialog-head .icon-btn { margin-left: auto; }
@@ -301,8 +330,8 @@
 
 /* Drop zone: saved plan waiting for its file */
 .dropzone .dropzone-discard { pointer-events: auto; }
-.dropzone .dropzone-links a { pointer-events: auto; color: inherit; text-underline-offset: 3px; }
-.dropzone .dropzone-links a:hover { color: var(--text); }
+.dropzone .dropzone-links .link-btn { pointer-events: auto; color: inherit; font: inherit; }
+.dropzone .dropzone-links .link-btn:hover { color: var(--text); }
 
 /* Crash screen */
 .crash { display: grid; justify-items: start; gap: 12px; max-width: 520px; margin: 0 auto; padding: 15vh 24px 24px; }
@@ -316,3 +345,59 @@
   .keys div { grid-template-columns: 1fr; gap: 2px; }
   .status-help { display: none; }
 }
+
+/* ── Motion: the brand's fast layer only (brand study, Tool UI): dur-fast for colour, dur-hover for hover,
+   dur-slow for panels opening, ease-out everywhere. No loader, iris, scroll scrub or cursor follower.
+   base.css zeroes every duration under prefers-reduced-motion. ── */
+
+/* Pins fade in once the frame has settled (brand Pin: 1.2 s after a 0.6 s delay). */
+@keyframes pins-in { from { opacity: 0; } to { opacity: 1; } }
+.viewport::after { animation: pins-in 1.2s var(--ease-out) 0.6s both; }
+
+/* Panels open: rise 12 px and fade over dur-slow; the backdrop fades with them. Closing plays it backwards
+   (display/overlay with allow-discrete), and browsers without @starting-style simply cut. */
+.export-dialog, .help-dialog, .info-dialog {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out),
+    overlay var(--dur-slow) allow-discrete, display var(--dur-slow) allow-discrete;
+}
+.export-dialog:not([open]), .help-dialog:not([open]), .info-dialog:not([open]) { opacity: 0; transform: translateY(12px); }
+.export-dialog::backdrop, .help-dialog::backdrop, .info-dialog::backdrop {
+  transition: background-color var(--dur-hover) var(--ease-out), overlay var(--dur-hover) allow-discrete, display var(--dur-hover) allow-discrete;
+}
+.export-dialog:not([open])::backdrop, .help-dialog:not([open])::backdrop, .info-dialog:not([open])::backdrop { background: rgba(3, 5, 0, 0); }
+@starting-style {
+  .export-dialog[open], .help-dialog[open], .info-dialog[open] { opacity: 0; transform: translateY(12px); }
+  .export-dialog[open]::backdrop, .help-dialog[open]::backdrop, .info-dialog[open]::backdrop { background: rgba(3, 5, 0, 0); }
+}
+
+/* Overlays that appear over the viewport settle in over dur-slow; the pick tooltip stays same-frame. */
+.confirm-bar, .first-hint { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+@starting-style {
+  .confirm-bar { opacity: 0; transform: translateY(-8px); }
+  .first-hint { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+/* A new seam row rises into the list (dur-hover); reorders keep their keys, so they don't replay it. */
+.seam-row {
+  transition: background-color var(--dur-hover) var(--ease-out), box-shadow var(--dur-hover) var(--ease-out),
+    opacity var(--dur-hover) var(--ease-out), transform var(--dur-hover) var(--ease-out);
+}
+@starting-style { .seam-row { opacity: 0; transform: translateY(6px); } }
+
+/* Status-bar notices fade in over dur-fast. */
+.status-notice { transition: opacity var(--dur-fast) var(--ease-out); }
+@starting-style { .status-notice { opacity: 0; } }
+
+/* Text links follow the site's nav link: a hairline sits under the text, and a full-strength underline grows
+   from the left in dur-fast on hover. */
+.link-btn {
+  padding-bottom: 2px;
+  text-decoration: none;
+  background:
+    linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0 1px,
+    linear-gradient(rgba(246, 246, 238, 0.35), rgba(246, 246, 238, 0.35)) no-repeat 0 100% / 100% 1px;
+  transition: color var(--dur-fast) var(--ease-out), background-size var(--dur-fast) var(--ease-out);
+}
+.link-btn:hover { background-size: 100% 1px, 100% 1px; }
