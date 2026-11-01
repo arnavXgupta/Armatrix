@@ -9,7 +9,7 @@ Built for the Armatrix software intern assignment.
 
 **Live app:** not deployed yet, [run it locally](#run-it-locally) · **Walkthrough video:** to be recorded
 
-![T-joint weldment with four seams. The selected L-shaped gusset seam is orange, numbered chips show the weld order, and the parameter form is on the right.](docs/screenshots/planner.png)
+![T-joint weldment with four seams. The selected L-shaped gusset seam is orange with torch-direction ticks, numbered chips show the weld order, dashed lines show the moves between seams, an axis triad and view buttons sit top right, and the parameter form is on the right.](docs/screenshots/planner.png)
 
 ## Contents
 
@@ -54,7 +54,9 @@ node scripts/gen-samples.mjs samples   # write the synthetic test parts into sam
    seam. Shift-click a touching line to extend the selected seam. Where no line fits, press `M` and
    click points on the part, then press `Enter`.
 4. **Set the order.** The seam list is the weld order. Drag rows or press `Shift + ↑/↓`. Numbered chips
-   in the view mark where each seam starts. `F` flips a seam's direction.
+   in the view mark where each seam starts, and dashed lines show the torch's moves between seams.
+   "Order by nearest" shortens those moves. `F` flips a seam's direction. `Ctrl + Z` undoes any seam
+   edit.
 5. **Set parameters.** Select a seam to edit its weld type, process, speeds, angles, weave and arc
    settings. "Apply to all fillet seams" copies them to every seam of that type.
 6. **Export.** Open Export, fix any errors it lists, then download `<job>-weldjob.json`. Import in the
@@ -80,7 +82,10 @@ Press `?` in the app for every shortcut.
 | `Shift` + `↑` `↓` | Move the selected seam earlier or later in the weld order |
 | `F` | Flip the selected seam's direction |
 | `Del` | Delete the selected seam |
+| `Ctrl` + `Z` | Undo the last seam edit (in manual mode: the last point) |
+| `Ctrl` + `Shift` + `Z` · `Ctrl` + `Y` | Redo |
 | `R` | Fit the part in view |
+| `1` `2` `3` `4` | View from the top, front, right or front-right corner |
 | `F2` · double-click | Rename a seam in the list |
 | Drag · right-drag · wheel | Orbit · pan · zoom |
 | `?` | Show this list |
@@ -105,7 +110,20 @@ re-chains them without reloading the part. Only edges you can see can be picked.
 - Click to add an edge, shift-click to join one on.
 - Draw a seam point by point; click the first point to close a loop.
 - Rename, reorder (drag or keys), flip and delete seams.
+- Undo and redo every seam edit, 50 steps back, with `Ctrl + Z` or the arrows above the list.
 - Replacing a part that has seams asks first.
+
+**Sequence and direction.**
+
+- Dashed lines with arrowheads show each move from one seam's end to the next seam's start. They draw
+  through the part, so a move behind it still shows.
+- The status bar and the export carry the total of those moves (air travel).
+- "Order by nearest" reorders the seams so each starts near where the last one ended. The first seam
+  stays first. An open seam may be reversed; a loop keeps its start point.
+- The selected seam shows short ticks along its torch direction.
+
+**View.** Top, front, right and corner presets (keys `1`–`4`), and an axis triad that shows the part's
+own X, Y and Z.
 
 **Parameters.**
 
@@ -114,7 +132,7 @@ re-chains them without reloading the part. Only edges you can see can be picked.
 - Defaults depend on weld type and process.
 - A number field refuses letters.
 - Settings copy to every seam of the same weld type.
-- The status bar estimates the total weld time.
+- The status bar estimates the total weld time, including the moves between seams.
 
 **Export and import.**
 
@@ -140,7 +158,8 @@ blocked, it says "autosave off" and keeps working.
 - reachability, collision or robot kinematics checks
 - assemblies or several parts per job
 - cloud save and share links (designed as plan 06b, see below)
-- undo/redo for seam edits
+- the shortest possible weld order: "Order by nearest" is a greedy pass, usually shorter but not optimal
+- animated playback of the weld sequence
 - snapping manual points to edges
 
 ## How it's built
@@ -157,8 +176,8 @@ Web Worker ─ src/workers/geometry.worker.ts
   │  returns RawMesh (transferred) and Candidate[]
   ▼
 zustand store ─ src/store/useStore.ts ──autosave──▶ localStorage (plan) + IndexedDB (STL bytes)
-  │  part · candidates · seams in weld order · parameters · job
-  ├──▶ Scene ─ src/viewport/Scene.ts       three.js: mesh, candidate lines, seams, GPU picking
+  │  part · candidates · seams in weld order · parameters · job · undo history
+  ├──▶ Scene ─ src/viewport/Scene.ts       three.js: mesh, candidate lines, seams, air moves, GPU picking
   ├──▶ panels ─ src/components/            seam list, parameter form, status bar, dialogs
   ▼
 export ─ src/export/   toWeldJob → validateJob → JSON download
@@ -243,8 +262,8 @@ What a reader can rely on:
 - **Every waypoint has a direction.** `n` is a unit vector pointing away from the part, for torch
   approach.
 - **The job is tied to its part.** `part.sha256` is the hash of the exact uploaded bytes.
-- **Versioning.** `schemaVersion` is `1.0`. Readers accept any `1.x`; a new major version means a
-  breaking change and is refused on import.
+- **Versioning.** `schemaVersion` is `1.1`. Readers accept any `1.x`; a new major version means a
+  breaking change and is refused on import. 1.1 added `summary.airTravelMm`; 1.0 files still import.
 - **Rounding.** Coordinates and lengths are rounded to 0.001 mm, with more decimals for parts under about 100 mm
   across. Normals are rounded to 6 decimals.
 
@@ -253,10 +272,10 @@ Regenerate the part with `node scripts/gen-samples.mjs samples` and its `sha256`
 
 ```jsonc
 {
-  "schemaVersion": "1.0",
-  "jobId": "da89ee75-6abe-4514-8b83-b1b4facd1b96",
+  "schemaVersion": "1.1",
+  "jobId": "e1381745-27cb-4be1-9d09-a42a10545827",
   "name": "T-joint demo",
-  "createdAt": "2026-10-31T12:04:17.013Z",
+  "createdAt": "2026-10-31T18:58:28.805Z",
   "generator": "armatrix-weld-seam-planner/0.1.0",
   "units": "mm",
   "coordinateFrame": "part",
@@ -272,7 +291,7 @@ Regenerate the part with `node scripts/gen-samples.mjs samples` and its `sha256`
   },
   "seams": [
     {
-      "id": "f25b3ade-0f78-4671-b677-67636fbae5ef",
+      "id": "3b050a00-db68-4b35-9898-a381f27af7ee",
       "order": 1,
       "name": "Web foot +X",
       "source": "auto",
@@ -308,7 +327,7 @@ Regenerate the part with `node scripts/gen-samples.mjs samples` and its `sha256`
     },
     // seam 2, "Web foot −X": the same on the other side of the web
     {
-      "id": "442a6e6a-6e2d-4615-9bc0-d3d241f9e33a",
+      "id": "731b3c9a-bcdf-4526-bff2-cd81055a0752",
       "order": 3,
       "name": "Gusset A",
       "source": "auto",
@@ -335,13 +354,15 @@ Regenerate the part with `node scripts/gen-samples.mjs samples` and its `sha256`
   "summary": {
     "seamCount": 4,
     "totalLengthMm": 400,
-    "estimatedTimeS": 83
+    "airTravelMm": 232.598,
+    "estimatedTimeS": 85
   }
 }
 ```
 
 "Gusset A" was made by clicking the gusset's foot and shift-clicking its upright edge. The direction
-turns at the corner, where the torch moves from the plate to the web.
+turns at the corner, where the torch moves from the plate to the web. The 232.6 mm of air travel is
+10 mm across the web's foot, then two long moves to each gusset; "Order by nearest" would shorten it.
 
 `?` after a field name means the field can be absent. A unit column entry means every value of that
 field is in that unit.
@@ -350,7 +371,7 @@ field is in that unit.
 
 | Field | Type | Unit | Meaning |
 |---|---|---|---|
-| `schemaVersion` | `"1.0"` |  | Format version; readers accept any 1.x. |
+| `schemaVersion` | `"1.1"` |  | Format version; readers accept any 1.x. |
 | `jobId` | `string` |  | Job id (uuid), stable across re-exports of the same plan. |
 | `name` | `string` |  | Job label; defaults to the part file name without extension. |
 | `createdAt` | `string` |  | Export time, ISO-8601 UTC. |
@@ -396,7 +417,8 @@ field is in that unit.
 | `summary` | `object` |  | Totals computed at export. |
 | `summary.seamCount` | `number` |  | Number of seams. |
 | `summary.totalLengthMm` | `number` | mm | Sum of seam lengths, mm. |
-| `summary.estimatedTimeS` | `number` | s | Arc time (length / speed × passes) plus a fixed start/stop allowance per seam, s. |
+| `summary.airTravelMm` | `number` | mm | Sum of the straight moves from each seam's end to the next seam's start, mm. Added in 1.1. |
+| `summary.estimatedTimeS` | `number` | s | Arc time (length / speed × passes), plus air travel at 100 mm/s, plus a fixed start/stop allowance per seam, s. |
 
 <!-- schema:end -->
 
@@ -416,7 +438,7 @@ field is in that unit.
 - brand tokens against `brand.md`, and this README's schema table against `schema.ts`
 
 The app was also checked end to end in headless Chrome (puppeteer-core with the real GPU). The checks
-drop real files, click, drag, type, reload and download. 119 checks pass across the dev server and the
+drop real files, click, drag, type, reload and download. 172 checks pass across the dev server and the
 production build, at widths from 360 px with touch to 1440 px.
 
 <details>
@@ -453,6 +475,7 @@ synthetic ones with `node scripts/gen-samples.mjs samples`.
 | Performance | 7 | Picking time, manual raycast, 5° re-chain, CPU throttled 4× |
 | Restore | 5 | The fan and the 52.6 MB part restore from IndexedDB |
 | Export on three parts | 5 | T-joint, fan and tube export valid jobs |
+| Order, direction, undo, views | 53 | Air lines and totals, order by nearest and its undo, undo/redo by key and button, text fields keep their own undo, torch ticks lean off both plates, ≤ 64 ticks on a 1,024-point loop with no frame-time cost, view presets in both projections, triad at three widths, schema 1.1 download |
 | Production build | 7 | Same flows on `vite preview`, including a 64-character SHA-256 |
 
 Measured on the development laptop, 1M-triangle part:

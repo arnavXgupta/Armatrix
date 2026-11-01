@@ -2,7 +2,7 @@
 // from them by `npm run docs:schema` (scripts/schema-table.mjs) and a test fails if it drifts.
 import type { Vec3 } from '../geometry/types'
 
-export const SCHEMA_VERSION = '1.0'
+export const SCHEMA_VERSION = '1.1'
 
 export type WeldType = 'fillet' | 'butt' | 'lap' | 'groove'
 export type Process = 'GMAW' | 'GTAW' | 'FCAW'
@@ -124,7 +124,9 @@ export type WeldJob = {
     seamCount: number
     /** Sum of seam lengths, mm. */
     totalLengthMm: number
-    /** Arc time (length / speed × passes) plus a fixed start/stop allowance per seam, s. */
+    /** Sum of the straight moves from each seam's end to the next seam's start, mm. Added in 1.1. */
+    airTravelMm: number
+    /** Arc time (length / speed × passes), plus air travel at 100 mm/s, plus a fixed start/stop allowance per seam, s. */
     estimatedTimeS: number
   }
 }

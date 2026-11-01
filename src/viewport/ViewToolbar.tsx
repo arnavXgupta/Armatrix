@@ -1,4 +1,25 @@
 import { useStore } from '../store/useStore'
+import type { ViewPreset } from './Scene'
+
+const VIEWS: [ViewPreset, string, string, string][] = [
+  ['top', 'Top', '1', 'from above'],
+  ['front', 'Front', '2', 'from the front (−Y)'],
+  ['right', 'Right', '3', 'from the right (+X)'],
+  ['iso', 'Iso', '4', 'from the front-right corner, the default view'],
+]
+
+/** Standard view directions, in a column under the axis triad (top-right of the canvas). */
+export function ViewPresets({ onView }: { onView: (v: ViewPreset) => void }) {
+  return (
+    <div className="view-presets" role="group" aria-label="View direction">
+      {VIEWS.map(([v, label, key, what]) => (
+        <button key={v} type="button" className="tool" onClick={() => onView(v)} title={`View ${what} (${key})`} aria-keyshortcuts={key}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export default function ViewToolbar({ onFit }: { onFit: () => void }) {
   const ui = useStore((s) => s.ui)

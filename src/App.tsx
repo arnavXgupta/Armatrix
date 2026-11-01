@@ -11,6 +11,7 @@ import StatusBar from './components/StatusBar'
 import Toolbar from './components/Toolbar'
 import { storage } from './storage'
 import { useStore } from './store/useStore'
+import { isTyping } from './ui/typing'
 import Viewport from './viewport/Viewport'
 
 export default function App() {
@@ -37,8 +38,7 @@ export default function App() {
     }
     // ? opens the shortcut list from anywhere except text fields.
     const key = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]')
-      if (e.key === '?' && !typing) {
+      if (e.key === '?' && !isTyping(e.target)) {
         e.preventDefault()
         useStore.getState().setHelpOpen(!useStore.getState().helpOpen)
       }

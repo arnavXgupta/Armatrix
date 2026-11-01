@@ -51,10 +51,11 @@ const loadsSent = async (n: number) => {
 const st = () => useStore.getState()
 /** Load a part and answer with `n` candidates. */
 async function ready(name = 'a.stl', n = 4) {
+  const asked = h.cands.length
   const done = st().loadFile(stl(name), { force: true })
   await loadsSent(h.loads.length + 1)
   h.loads[h.loads.length - 1].resolve(loaded())
-  for (let i = 0; i < 50 && h.cands.length === 0; i++) await flush()
+  for (let i = 0; i < 50 && h.cands.length === asked; i++) await flush()
   h.cands[h.cands.length - 1].resolve(cands(n))
   await done
 }
@@ -217,6 +218,66 @@ describe('seams', () => {
     st().applyParamsToType(a.id)
     expect(st().seams.find((s) => s.id === b.id)!.params).toMatchObject({ travelSpeedMmS: 9, passes: 2 })
     expect(st().seams.find((s) => s.id === c.id)!.params.travelSpeedMmS).toBe(6)
+  })
+
+  test('undo restores a deleted seam and its selection; redo deletes it again; a new edit clears redo', async () => {
+    await ready('a.stl', 4)
+    st().addSeamFromCandidate(0)
+    const id = st().selectedSeamId!
+    st().removeSeam(id)
+    expect(st().seams).toHaveLength(0)
+    st().undo()
+    expect(st().seams.map((s) => s.id)).toEqual([id])
+    expect(st().selectedSeamId).toBe(id)
+    st().redo()
+    expect(st().seams).toHaveLength(0)
+    st().undo()
+    st().undo() // back to before the add
+    expect(st().seams).toHaveLength(0)
+    expect(st().future).toHaveLength(2)
+    st().addSeamFromCandidate(1)
+    expect(st().future).toHaveLength(0)
+    expect(st().seams[0].name).toBe('S-01') // the undone add gave its name back
+  })
+
+  test('only real changes are history: selection, a same-name rename and unchanged notes are not', async () => {
+    await ready('a.stl', 4)
+    st().addSeamFromCandidate(0)
+    const id = st().selectedSeamId!
+    const n = st().past.length
+    st().selectSeam(null)
+    st().renameSeam(id, ' S-01 ')
+    st().setNotes(id, '')
+    st().applyParamsToType(id) // no other fillet seams
+    expect(st().past).toHaveLength(n)
+    st().renameSeam(id, 'Base')
+    expect(st().past).toHaveLength(n + 1)
+  })
+
+  test('a new part starts with empty undo and redo', async () => {
+    await ready('a.stl', 4)
+    st().addSeamFromCandidate(0)
+    st().addSeamFromCandidate(1)
+    st().undo()
+    expect(st().past.length + st().future.length).toBeGreaterThan(0)
+    await ready('b.stl', 4)
+    expect(st().past).toEqual([])
+    expect(st().future).toEqual([])
+  })
+
+  test('order by nearest: one history entry when it helps, none when it does not', async () => {
+    await ready('a.stl', 4)
+    for (const i of [0, 2, 1]) st().addSeamFromCandidate(i) // x 0–10, 20–30, 10–20
+    const n = st().past.length
+    st().orderByNearest()
+    expect(st().seams.map((s) => s.points[0][0])).toEqual([0, 10, 20])
+    expect(st().notice).toMatch(/30\.0 mm → 0\.0 mm/)
+    expect(st().past).toHaveLength(n + 1)
+    st().orderByNearest()
+    expect(st().notice).toMatch(/No shorter order/)
+    expect(st().past).toHaveLength(n + 1)
+    st().undo()
+    expect(st().seams.map((s) => s.points[0][0])).toEqual([0, 20, 10])
   })
 
   test('import: a different part is refused unless forced; with seams present it asks first', async () => {

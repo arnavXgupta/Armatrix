@@ -6,9 +6,12 @@ import type { JobMeta } from '../export/toWeldJob'
 import { bboxDiagonal, guessUnits, type Units } from '../geometry/parseStl'
 import type { Bbox, Candidate, RawMesh, Vec3 } from '../geometry/types'
 import { storage } from '../storage'
+import { formatLength } from '../ui/format'
 import type { PlanDocument } from '../storage/types'
 import { CancelledError, candidatesInWorker, loadInWorker, workerEpoch } from '../workers/geometryClient'
+import { EMPTY_HISTORY, record, redo as redoStep, undo as undoStep, type History, type Snapshot } from './history'
 import { flipSeam, joinSeam, newId, seamFromCandidate, seamFromPoints, seamName, seamOwners, type Seam } from './seams'
+import { airTravel, orderByNearest as nearestOrder } from './sequence'
 
 export const MAX_FILE_BYTES = 250 * 1024 * 1024
 export const BIG_PART_TRIANGLES = 2_000_000
@@ -46,6 +49,8 @@ export type StoreState = {
   seams: Seam[] // array order = weld order
   seamCounter: number // next S-NN; never reused after a delete
   selectedSeamId: string | null
+  past: Snapshot[] // undo stack: seam edits on this part, newest last; not persisted
+  future: Snapshot[] // redo stack
   hoverCandidateId: number | null
   mode: Mode
   manualPoints: { p: Vec3; n: Vec3 }[]
@@ -77,6 +82,9 @@ export type StoreState = {
   flipSeam(id: string): void
   removeSeam(id: string): void
   moveSeam(id: string, toIndex: number): void
+  orderByNearest(): void
+  undo(): void
+  redo(): void
 
   updateParams(id: string, patch: Partial<WeldParams>): void
   resetParams(id: string): void
@@ -125,15 +133,20 @@ export const useStore = create<StoreState>()((set, get) => {
   // If the worker was replaced since this part loaded, it no longer holds the part's edges.
   const dropPartIfOrphaned = () => {
     if (get().part && workerEpoch() !== partEpoch)
-      set({ part: null, mesh: null, candidates: [], candidatesDeg: null, candidatesMs: null, seams: [], selectedSeamId: null })
+      set({ part: null, mesh: null, candidates: [], candidatesDeg: null, candidatesMs: null, seams: [], selectedSeamId: null, ...EMPTY_HISTORY })
   }
   /** Seam edits: clear a stale error or "restored" banner, keep everything else. */
   const editSeams = (patch: Partial<StoreState>) => {
     const k = get().status.kind
     set({ ...patch, ...(k === 'error' || k === 'restored' ? { status: READY } : {}) })
   }
+  const snapshot = (): Snapshot => ({ seams: get().seams, selectedSeamId: get().selectedSeamId, seamCounter: get().seamCounter })
+  const history = (): History => ({ past: get().past, future: get().future })
+  /** An undoable seam edit: remember the state before it, then apply it. */
+  const commit = (patch: Partial<StoreState>) => editSeams({ ...record(history(), snapshot()), ...patch })
+  const step = (r: ReturnType<typeof undoStep>) => r && editSeams({ ...r.snapshot, ...r.history })
   const seamById = (id: string) => get().seams.find((s) => s.id === id)
-  const mapSeam = (id: string, fn: (s: Seam) => Seam) => editSeams({ seams: get().seams.map((s) => (s.id === id ? fn(s) : s)) })
+  const mapSeam = (id: string, fn: (s: Seam) => Seam) => commit({ seams: get().seams.map((s) => (s.id === id ? fn(s) : s)) })
   const notice = (message: string) => get().setNotice(message)
 
   async function refreshCandidates() {
@@ -161,6 +174,7 @@ export const useStore = create<StoreState>()((set, get) => {
     seams: [],
     seamCounter: 1,
     selectedSeamId: null,
+    ...EMPTY_HISTORY,
     hoverCandidateId: null,
     mode: 'pick',
     manualPoints: [],
@@ -251,6 +265,7 @@ export const useStore = create<StoreState>()((set, get) => {
           seams,
           seamCounter: nextCounter(seams),
           selectedSeamId: selected,
+          ...EMPTY_HISTORY,
           hoverCandidateId: null,
           mode: 'pick',
           manualPoints: [],
@@ -303,6 +318,7 @@ export const useStore = create<StoreState>()((set, get) => {
         seams: [],
         seamCounter: 1,
         selectedSeamId: null,
+        ...EMPTY_HISTORY,
         hoverCandidateId: null,
         mode: 'pick',
         manualPoints: [],
@@ -349,7 +365,7 @@ export const useStore = create<StoreState>()((set, get) => {
         return
       }
       const seam = seamFromCandidate(c, newId(), seamName(s.seamCounter), defaultParams())
-      editSeams({ seams: [...s.seams, seam], seamCounter: s.seamCounter + 1, selectedSeamId: seam.id, notice: null })
+      commit({ seams: [...s.seams, seam], seamCounter: s.seamCounter + 1, selectedSeamId: seam.id, notice: null })
     },
 
     joinCandidate(id) {
@@ -390,7 +406,7 @@ export const useStore = create<StoreState>()((set, get) => {
         seamName(s.seamCounter),
         defaultParams(),
       )
-      editSeams({ seams: [...s.seams, seam], seamCounter: s.seamCounter + 1, selectedSeamId: seam.id, manualPoints: [] })
+      commit({ seams: [...s.seams, seam], seamCounter: s.seamCounter + 1, selectedSeamId: seam.id, manualPoints: [] })
     },
 
     cancelManual() {
@@ -411,7 +427,7 @@ export const useStore = create<StoreState>()((set, get) => {
 
     renameSeam(id, name) {
       const trimmed = name.trim()
-      if (trimmed) mapSeam(id, (s) => ({ ...s, name: trimmed }))
+      if (trimmed && trimmed !== seamById(id)?.name) mapSeam(id, (s) => ({ ...s, name: trimmed }))
     },
 
     flipSeam(id) {
@@ -420,7 +436,7 @@ export const useStore = create<StoreState>()((set, get) => {
 
     removeSeam(id) {
       const s = get()
-      editSeams({ seams: s.seams.filter((x) => x.id !== id), selectedSeamId: s.selectedSeamId === id ? null : s.selectedSeamId })
+      if (seamById(id)) commit({ seams: s.seams.filter((x) => x.id !== id), selectedSeamId: s.selectedSeamId === id ? null : s.selectedSeamId })
     },
 
     moveSeam(id, toIndex) {
@@ -431,7 +447,27 @@ export const useStore = create<StoreState>()((set, get) => {
       if (from === to) return
       const [seam] = seams.splice(from, 1)
       seams.splice(to, 0, seam)
-      editSeams({ seams })
+      commit({ seams })
+    },
+
+    orderByNearest() {
+      const { seams, part } = get()
+      if (seams.length < 2) return
+      const next = nearestOrder(seams)
+      const before = airTravel(seams), after = airTravel(next)
+      const len = (v: number) => formatLength(v, part?.units)
+      if (after >= before - 1e-9 * (1 + before)) return notice(`No shorter order found; air travel stays ${len(before)}.`)
+      const flipped = next.filter((s) => !seams.includes(s)).length
+      commit({ seams: next })
+      notice(`Reordered: air travel ${len(before)} → ${len(after)}${flipped ? `, ${flipped} ${flipped === 1 ? 'seam' : 'seams'} reversed` : ''}.`)
+    },
+
+    undo() {
+      step(undoStep(history(), snapshot()))
+    },
+
+    redo() {
+      step(redoStep(history(), snapshot()))
     },
 
     updateParams(id, patch) {
@@ -452,12 +488,12 @@ export const useStore = create<StoreState>()((set, get) => {
         n++
         return { ...s, params: { ...src.params, weave: { ...src.params.weave } } }
       })
-      editSeams({ seams })
+      if (n) commit({ seams })
       notice(n ? `Copied ${src.name}'s parameters to ${n} other ${type} ${n === 1 ? 'seam' : 'seams'}.` : `No other ${type} seams to update.`)
     },
 
     setNotes(id, notes) {
-      mapSeam(id, (s) => ({ ...s, notes }))
+      if (notes !== (seamById(id)?.notes ?? '')) mapSeam(id, (s) => ({ ...s, notes }))
     },
 
     setJob(patch) {
@@ -477,7 +513,7 @@ export const useStore = create<StoreState>()((set, get) => {
         return { ok: false, error: errorText(e) }
       }
       const apply = () => {
-        editSeams({
+        commit({
           seams,
           seamCounter: nextCounter(seams),
           selectedSeamId: null,

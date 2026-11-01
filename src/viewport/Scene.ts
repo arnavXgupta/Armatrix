@@ -5,16 +5,26 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
 import type { Candidate, RawMesh, Vec3 } from '../geometry/types'
-import type { Seam } from '../store/seams'
+import { samplePath, type Seam } from '../store/seams'
+import { airMoves } from '../store/sequence'
 
 // Colours come from the CSS tokens so brand.md stays the single source.
 const token = (name: string) => new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(name).trim())
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 const FOV = 40
-const ISO = new THREE.Vector3(1, 0.75, 1.25).normalize() // default view: front-right, slightly above
 const PICK_RADIUS_PX = 6
 const Y = new THREE.Vector3(0, 1, 0)
+const MAX_TICKS = 64
+
+export type ViewPreset = 'top' | 'front' | 'right' | 'iso'
+/** Camera direction from the target, in part axes (STL, Z up). */
+const VIEWS: Record<ViewPreset, THREE.Vector3> = {
+  top: new THREE.Vector3(0, -1e-4, 1).normalize(), // the sliver of -Y keeps part +Y up the screen; straight down has no "up"
+  front: new THREE.Vector3(0, -1, 0),
+  right: new THREE.Vector3(1, 0, 0),
+  iso: new THREE.Vector3(1, -1.25, 0.75).normalize(), // front-right, slightly above: the default view
+}
 
 type Polyline = { points: Vec3[]; closed: boolean }
 
@@ -52,6 +62,8 @@ export class Scene {
     selected: token('--orange'),
     pulse: token('--sand'),
     manual: token('--orange-3'),
+    air: token('--sand'),
+    airCasing: token('--forest'),
   }
   private resolution = new THREE.Vector2(1, 1)
   private fatMats: LineMaterial[] = []
@@ -59,9 +71,13 @@ export class Scene {
   private seamLine: LineSegments2
   private selLine: LineSegments2
   private manualLine: LineSegments2
+  private airLine: LineSegments2 // dashed moves between seams, drawn through the part
+  private airCasing: LineSegments2 // dark band under the dashes so they read on the light part too
+  private tickLine: LineSegments2 // torch direction at the selected seam's waypoints
   private sphere = new THREE.SphereGeometry(1, 16, 12)
   private cone = new THREE.ConeGeometry(1, 3, 16)
-  private markerMats: { seam: THREE.MeshBasicMaterial; selected: THREE.MeshBasicMaterial; manual: THREE.MeshBasicMaterial }
+  private markerMats: { seam: THREE.MeshBasicMaterial; selected: THREE.MeshBasicMaterial; manual: THREE.MeshBasicMaterial; air: THREE.MeshBasicMaterial }
+  private triad = new Triad()
 
   // GPU picking: candidates under the pointer, depth-tested against the mesh, so hidden edges never pick.
   private pickScene = new THREE.Scene()
@@ -124,11 +140,22 @@ export class Scene {
       seam: new THREE.MeshBasicMaterial({ color: this.colors.seam }),
       selected: new THREE.MeshBasicMaterial({ color: this.colors.selected }),
       manual: new THREE.MeshBasicMaterial({ color: this.colors.manual }),
+      air: new THREE.MeshBasicMaterial({ color: this.colors.air, depthTest: false, depthWrite: false }),
     }
     this.hoverLine = this.fatLine(this.colors.selected, 3)
     this.seamLine = this.fatLine(this.colors.seam, 3)
     this.selLine = this.fatLine(this.colors.selected, 4)
     this.manualLine = this.fatLine(this.colors.manual, 2)
+    this.tickLine = this.fatLine(this.colors.manual, 2)
+    // Air moves draw through the part (no depth test): seeing a move behind the part is the point.
+    // Render order puts them after the part and before the seam lines, which then draw over them.
+    this.airCasing = this.fatLine(this.colors.airCasing, 4)
+    this.airLine = this.fatLine(this.colors.air, 2)
+    Object.assign(this.airCasing.material, { depthTest: false, depthWrite: false })
+    Object.assign(this.airLine.material, { dashed: true, depthTest: false, depthWrite: false })
+    this.airCasing.renderOrder = 0.5
+    this.airLine.renderOrder = 0.6
+    this.triad.group.quaternion.copy(this.part.quaternion)
 
     this.controls = new OrbitControls(this.persp, canvas)
     this.controls.addEventListener('change', () => this.requestRender())
@@ -249,13 +276,40 @@ export class Scene {
     this.setFat(this.seamLine, seams.filter((s) => s !== selected))
     this.setFat(this.selLine, selected ? [selected] : [])
     this.selLine.material.color.copy(this.colors.selected)
+    const r = this.radius * 0.008
+    const moves = airMoves(seams).filter((m) => m.length > r)
+    const air = moves.map((m) => ({ points: [m.from, m.to], closed: false }))
+    Object.assign(this.airLine.material, { dashSize: r * 2.5, gapSize: r * 1.5 })
+    this.setFat(this.airLine, air)
+    this.setFat(this.airCasing, air)
 
     for (const m of this.markers.children.filter((c) => !c.userData.manual)) this.markers.remove(m)
     for (const c of [...this.chips.children]) {
       this.chips.remove(c)
       ;(c as CSS2DObject).element.remove()
     }
-    const r = this.radius * 0.008
+    // An arrowhead halfway along each air move shows which way the torch travels.
+    for (const m of moves) {
+      const dir = new THREE.Vector3(m.to[0] - m.from[0], m.to[1] - m.from[1], m.to[2] - m.from[2]).normalize()
+      const cone = new THREE.Mesh(this.cone, this.markerMats.air)
+      cone.scale.setScalar(r)
+      cone.quaternion.setFromUnitVectors(Y, dir)
+      cone.position.set((m.from[0] + m.to[0]) / 2, (m.from[1] + m.to[1]) / 2, (m.from[2] + m.to[2]) / 2)
+      cone.renderOrder = 0.6
+      this.markers.add(cone)
+    }
+    // Torch ticks: short lines along the torch direction, evenly spaced along the selected seam.
+    const ticks: Polyline[] = []
+    if (selected) {
+      const L = this.radius * 0.05
+      const count = Math.min(MAX_TICKS, Math.round(selected.length / L) + 1)
+      for (const { p, n } of samplePath(selected, count)) ticks.push({ points: [p, [p[0] + n[0] * L, p[1] + n[1] * L, p[2] + n[2] * L]], closed: false })
+      const tip = new THREE.Mesh(this.sphere, this.markerMats.manual) // marks the first tick, so start and end differ
+      tip.position.set(...ticks[0].points[1])
+      tip.scale.setScalar(r * 0.6)
+      this.markers.add(tip)
+    }
+    this.setFat(this.tickLine, ticks)
     seams.forEach((s, i) => {
       const isSel = s === selected
       const start = new THREE.Mesh(this.sphere, isSel ? this.markerMats.selected : this.markerMats.seam)
@@ -314,6 +368,19 @@ export class Scene {
     this.requestRender()
   }
 
+  /** Look at the part from a standard direction, keeping the target and the zoom. */
+  setView(preset: ViewPreset) {
+    const target = this.controls.target
+    const dir = VIEWS[preset].clone().applyQuaternion(this.part.quaternion)
+    for (const cam of [this.persp, this.ortho]) {
+      const d = cam.position.distanceTo(target)
+      cam.position.copy(target).addScaledVector(dir, d)
+      cam.lookAt(target)
+    }
+    this.controls.update()
+    this.requestRender()
+  }
+
   setWireframe(on: boolean) {
     this.wireframe = on
     if (this.mesh) this.mesh.material = on ? this.wire : this.solid
@@ -357,7 +424,7 @@ export class Scene {
     this.controls.maxDistance = r * 20
     this.controls.minZoom = 0.05
     this.controls.maxZoom = 50
-    this.frame3d(new THREE.Vector3(), r, resetView ? ISO.clone() : undefined)
+    this.frame3d(new THREE.Vector3(), r, resetView ? VIEWS.iso.clone().applyQuaternion(this.part.quaternion) : undefined)
   }
 
   /** Frame a set of part-coordinate points (a seam), keeping the view direction. */
@@ -435,7 +502,8 @@ export class Scene {
     this.setMesh(null)
     cancelAnimationFrame(this.frame) // after setMesh(null), which queues a frame
     for (const m of [this.solid, this.wire, this.lineMat, this.depthMat, this.pickMat, ...this.fatMats, ...Object.values(this.markerMats)]) m.dispose()
-    for (const l of [this.hoverLine, this.seamLine, this.selLine, this.manualLine]) l.geometry.dispose()
+    for (const l of [this.hoverLine, this.seamLine, this.selLine, this.manualLine, this.airLine, this.airCasing, this.tickLine]) l.geometry.dispose()
+    this.triad.dispose()
     this.sphere.dispose()
     this.cone.dispose()
     this.pickTarget.dispose()
@@ -465,6 +533,7 @@ export class Scene {
     line.geometry.dispose()
     line.geometry = new LineSegmentsGeometry()
     if (segs.length) line.geometry.setPositions(segs)
+    if (segs.length && line.material.dashed) line.computeLineDistances()
     line.visible = segs.length > 0
     this.requestRender()
   }
@@ -473,7 +542,7 @@ export class Scene {
   private frame3d(center: THREE.Vector3, r: number, dir?: THREE.Vector3) {
     const target = this.controls.target
     const d = dir ?? this.camera.position.clone().sub(target).normalize()
-    if (d.lengthSq() < 0.5) d.copy(ISO)
+    if (d.lengthSq() < 0.5) d.copy(VIEWS.iso).applyQuaternion(this.part.quaternion)
     const halfV = THREE.MathUtils.degToRad(FOV / 2)
     const halfH = Math.atan(Math.tan(halfV) * this.aspect())
     const dist = (r / Math.sin(Math.min(halfV, halfH))) * 1.05
@@ -529,7 +598,78 @@ export class Scene {
     cancelAnimationFrame(this.frame)
     this.frame = 0
     this.renderer.render(this.scene, this.camera)
+    this.triad.render(this.renderer, this.camera, this.host.clientWidth, this.host.clientHeight)
     this.labels.render(this.scene, this.camera)
+  }
+}
+
+/**
+ * Axis triad in the top-right corner: the part's X, Y, Z (STL axes, not three.js's) seen from the
+ * main camera's direction. Drawn as a second pass into a small scissored square of the same canvas,
+ * so it costs one tiny draw and no extra DOM. Labels are sprites: a CSS2D label would project with
+ * the main camera and land in the wrong place.
+ */
+class Triad {
+  group = new THREE.Group()
+  private scene = new THREE.Scene()
+  private camera = new THREE.OrthographicCamera(-2.05, 2.05, 2.05, -2.05, 0.1, 10) // room for a label at 1.6 + half its 0.85 size
+  private disposables: { dispose(): void }[] = []
+
+  constructor() {
+    const shaft = new THREE.CylinderGeometry(0.06, 0.06, 1, 8).translate(0, 0.5, 0)
+    const head = new THREE.ConeGeometry(0.15, 0.35, 12).translate(0, 1.12, 0)
+    this.disposables.push(shaft, head)
+    const axes: [string, string, THREE.Vector3][] = [
+      ['X', '--orange', new THREE.Vector3(1, 0, 0)],
+      ['Y', '--green-4', new THREE.Vector3(0, 1, 0)],
+      ['Z', '--sand-3', new THREE.Vector3(0, 0, 1)],
+    ]
+    const font = getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'sans-serif'
+    for (const [letter, colour, dir] of axes) {
+      const color = token(colour)
+      const mat = new THREE.MeshBasicMaterial({ color })
+      const axis = new THREE.Group()
+      axis.add(new THREE.Mesh(shaft, mat), new THREE.Mesh(head, mat))
+      axis.quaternion.setFromUnitVectors(Y, dir)
+      const canvas = Object.assign(document.createElement('canvas'), { width: 64, height: 64 })
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.font = `600 54px ${font}`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = `#${color.getHexString()}`
+        ctx.fillText(letter, 32, 34)
+      }
+      const map = new THREE.CanvasTexture(canvas)
+      map.colorSpace = THREE.SRGBColorSpace
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false }))
+      label.position.copy(dir).multiplyScalar(1.6)
+      label.scale.setScalar(0.85)
+      this.group.add(axis, label)
+      this.disposables.push(mat, map, label.material)
+    }
+    this.scene.add(this.group)
+  }
+
+  render(renderer: THREE.WebGLRenderer, main: THREE.Camera, width: number, height: number) {
+    const size = width < 480 ? 64 : 80 // the view-preset column in App.css sits under it at top: 100px
+    const margin = 12
+    this.camera.quaternion.copy(main.quaternion)
+    this.camera.position.set(0, 0, 3).applyQuaternion(main.quaternion)
+    const x = width - size - margin, y = height - size - margin // WebGL y runs up from the bottom
+    renderer.setScissorTest(true)
+    renderer.setScissor(x, y, size, size)
+    renderer.setViewport(x, y, size, size)
+    renderer.autoClear = false
+    renderer.clearDepth()
+    renderer.render(this.scene, this.camera)
+    renderer.autoClear = true
+    renderer.setScissorTest(false)
+    renderer.setViewport(0, 0, width, height)
+  }
+
+  dispose() {
+    for (const d of this.disposables) d.dispose()
   }
 }
 

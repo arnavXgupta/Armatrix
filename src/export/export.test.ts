@@ -4,7 +4,7 @@ import type { Vec3 } from '../geometry/types'
 import { seamFromPoints, type Seam } from '../store/seams'
 import { defaultParams } from './defaults'
 import { parseWeldJob, seamsFromJob } from './fromWeldJob'
-import { PROCESSES, WELD_TYPES, type WeldJob } from './schema'
+import { PROCESSES, SCHEMA_VERSION, WELD_TYPES, type WeldJob } from './schema'
 import { GENERATOR, estimateTimeS, formatJob, toWeldJob } from './toWeldJob'
 import { validateJob } from './validate'
 
@@ -45,12 +45,19 @@ describe('defaultParams', () => {
 describe('toWeldJob', () => {
   test('header, order, summary', () => {
     const j = exportJob()
-    expect(j).toMatchObject({ schemaVersion: '1.0', jobId: 'job-1', name: 'bracket', generator: GENERATOR, operator: 'Ana', units: 'mm', coordinateFrame: 'part' })
+    expect(j).toMatchObject({ schemaVersion: '1.1', jobId: 'job-1', name: 'bracket', generator: GENERATOR, operator: 'Ana', units: 'mm', coordinateFrame: 'part' })
     expect(j.notes).toBeUndefined()
     expect(j.seams.map((s) => s.order)).toEqual([1, 2])
     expect(j.summary.seamCount).toBe(2)
     expect(j.summary.totalLengthMm).toBeCloseTo(170)
-    expect(j.summary.estimatedTimeS).toBe(Math.round(170 / 6 + 2 * 4))
+    const air = Math.hypot(100, 10) // S-01 ends at (100, 0, 10), S-02 starts at the origin
+    expect(j.summary.airTravelMm).toBeCloseTo(air, 3)
+    expect(j.summary.estimatedTimeS).toBe(Math.round(170 / 6 + 2 * 4 + air / 100))
+  })
+
+  test('air travel is in mm for an inch part, and 0 for a single seam', () => {
+    expect(exportJob('in').summary.airTravelMm).toBeCloseTo(Math.hypot(100, 10) * 25.4, 3)
+    expect(exportJob('mm', twoSeams().slice(0, 1)).summary.airTravelMm).toBe(0)
   })
 
   test('inch part: coordinates and lengths ×25.4, normals stay unit, ≤ 3 decimals', () => {
@@ -76,6 +83,7 @@ describe('toWeldJob', () => {
 
   test('estimateTimeS counts passes and the per-seam allowance', () => {
     expect(estimateTimeS([{ lengthMm: 60, params: { ...defaultParams(), passes: 3 } }])).toBe(60 / 6 * 3 + 4)
+    expect(estimateTimeS([{ lengthMm: 60, params: defaultParams() }], 250)).toBe(60 / 6 + 4 + 2.5)
   })
 })
 
@@ -125,6 +133,14 @@ describe('import', () => {
       expect(s.length).toBeCloseTo(original[i].length, 5)
       s.points.forEach((p, j) => p.forEach((v, k) => expect(v).toBeCloseTo(original[i].points[j][k], 5)))
     })
+  })
+
+  test('a 1.0 file (no airTravelMm) still imports', () => {
+    const j = JSON.parse(JSON.stringify(exportJob()))
+    j.schemaVersion = '1.0'
+    delete j.summary.airTravelMm
+    expect(SCHEMA_VERSION).toBe('1.1')
+    expect(seamsFromJob(parseWeldJob(JSON.stringify(j))).map((s) => s.name)).toEqual(['S-01', 'S-02'])
   })
 
   test('refuses other major versions and broken files with a message; never throws raw', () => {

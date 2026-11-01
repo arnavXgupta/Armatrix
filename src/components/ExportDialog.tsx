@@ -104,7 +104,8 @@ export default function ExportDialog() {
       </div>
 
       <p className="job-summary">
-        {weldJob.summary.seamCount} {weldJob.summary.seamCount === 1 ? 'seam' : 'seams'} · {weldJob.summary.totalLengthMm} mm · est.{' '}
+        {weldJob.summary.seamCount} {weldJob.summary.seamCount === 1 ? 'seam' : 'seams'} · {weldJob.summary.totalLengthMm} mm
+        {weldJob.summary.seamCount > 1 && ` · air ${weldJob.summary.airTravelMm} mm`} · est.{' '}
         {formatDuration(weldJob.summary.estimatedTimeS)} · coordinates in mm, part frame, Z up
       </p>
 

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { seamOwners } from '../store/seams'
 import { ownerEps, useStore } from '../store/useStore'
 import { formatLength } from '../ui/format'
+import { isTextEntry, isTyping } from '../ui/typing'
 import { setActiveScene } from './api'
-import { Scene } from './Scene'
-import ViewToolbar from './ViewToolbar'
+import { Scene, type ViewPreset } from './Scene'
+import ViewToolbar, { ViewPresets } from './ViewToolbar'
 
+const VIEW_KEYS: Record<string, ViewPreset> = { 1: 'top', 2: 'front', 3: 'right', 4: 'iso' }
 const HINT_KEY = 'wsp:hintSeen'
 const hintSeen = () => {
   try {
@@ -170,9 +172,26 @@ export default function Viewport() {
   // Keyboard: viewport and seam-list shortcuts (the ? help lives in App).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]')
       const s = useStore.getState()
-      if (typing || e.ctrlKey || e.metaKey || e.altKey || s.exportOpen || s.helpOpen) return
+      if (s.exportOpen || s.helpOpen || e.altKey) return
+      // Undo / redo: everywhere except text fields, which keep the browser's own text undo.
+      if ((e.ctrlKey || e.metaKey) && !isTextEntry(e.target)) {
+        const key = e.key.toLowerCase()
+        const redo = key === 'y' || (key === 'z' && e.shiftKey)
+        if (key !== 'z' && key !== 'y') return
+        e.preventDefault()
+        if (s.mode === 'manual' && s.manualPoints.length && !redo) s.undoManualPoint()
+        else if (redo) s.redo()
+        else s.undo()
+        return
+      }
+      if (e.ctrlKey || e.metaKey) return
+      if (VIEW_KEYS[e.key] && !isTextEntry(e.target)) {
+        e.preventDefault()
+        scene.current?.setView(VIEW_KEYS[e.key])
+        return
+      }
+      if (isTyping(e.target)) return
       const sel = s.selectedSeamId
       const manual = s.mode === 'manual'
       let handled = true
@@ -238,7 +257,10 @@ export default function Viewport() {
           {glError}
         </p>
       ) : (
-        <ViewToolbar onFit={() => scene.current?.fit()} />
+        <>
+          <ViewPresets onView={(v) => scene.current?.setView(v)} />
+          <ViewToolbar onFit={() => scene.current?.fit()} />
+        </>
       )}
     </div>
   )

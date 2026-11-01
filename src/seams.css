@@ -105,6 +105,10 @@
 
 /* Seam list */
 .panel-count { margin-left: 4px; color: var(--text); letter-spacing: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.panel-head .panel-title { margin: 0; }
+.history-btns { display: flex; gap: 2px; margin: -4px 0; }
+.order-btn { width: 100%; margin-top: 10px; justify-content: center; }
 .seam-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .seam-row {
   display: flex;

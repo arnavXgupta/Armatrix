@@ -95,6 +95,7 @@ export default function SeamDetail() {
       <div className="detail-body" key={seam.id}>
         <div className="detail-head">
           <input
+            key={seam.name}
             id="f-name"
             className="detail-name"
             defaultValue={seam.name}
@@ -195,7 +196,7 @@ export default function SeamDetail() {
 
           <label className="field field-wide">
             <span className="field-label">Notes</span>
-            <textarea rows={2} defaultValue={seam.notes ?? ''} onBlur={(e) => setNotes(seam.id, e.target.value)} placeholder="For the operator" />
+            <textarea key={seam.notes ?? ''} rows={2} defaultValue={seam.notes ?? ''} onBlur={(e) => setNotes(seam.id, e.target.value)} placeholder="For the operator" />
           </label>
 
           <button type="button" className="btn-ghost btn-small field-wide" onClick={() => applyParamsToType(seam.id)}>

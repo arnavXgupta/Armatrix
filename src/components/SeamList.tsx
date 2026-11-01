@@ -7,7 +7,9 @@ export default function SeamList() {
   const selected = useStore((s) => s.selectedSeamId)
   const units = useStore((s) => s.part?.units)
   const hasPart = useStore((s) => s.part !== null)
-  const { selectSeam, renameSeam, moveSeam, removeSeam } = useStore.getState()
+  const canUndo = useStore((s) => s.past.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
+  const { selectSeam, renameSeam, moveSeam, removeSeam, undo, redo, orderByNearest } = useStore.getState()
   const [editing, setEditing] = useState<string | null>(null)
   const [drag, setDrag] = useState<{ id: string; over: number } | null>(null)
   const dragId = useRef<string | null>(null) // synchronous copy: drag events can outrun a re-render
@@ -19,9 +21,21 @@ export default function SeamList() {
 
   return (
     <aside className="panel seams" aria-labelledby="seams-title">
-      <h2 id="seams-title" className="panel-title">
-        Seams {seams.length > 0 && <span className="panel-count">{seams.length}</span>}
-      </h2>
+      <div className="panel-head">
+        <h2 id="seams-title" className="panel-title">
+          Seams {seams.length > 0 && <span className="panel-count">{seams.length}</span>}
+        </h2>
+        {hasPart && (
+          <span className="history-btns">
+            <button type="button" className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo" aria-keyshortcuts="Control+Z">
+              ↶
+            </button>
+            <button type="button" className="icon-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" aria-label="Redo" aria-keyshortcuts="Control+Shift+Z Control+Y">
+              ↷
+            </button>
+          </span>
+        )}
+      </div>
       {seams.length === 0 ? (
         <p className="panel-empty">
           {hasPart
@@ -121,6 +135,11 @@ export default function SeamList() {
             )
           })}
         </ol>
+      )}
+      {seams.length > 1 && (
+        <button type="button" className="btn-ghost btn-small order-btn" onClick={orderByNearest} title="Reorder so each seam starts near where the previous one ends; may reverse seams. Ctrl+Z undoes it.">
+          Order by nearest
+        </button>
       )}
     </aside>
   )

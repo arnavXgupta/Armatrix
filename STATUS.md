@@ -1,20 +1,25 @@
 # STATUS.md — current state of the project (read first, update last)
 
-Updated: 2026-10-31 · by: plan 07 session
+Updated: 2026-11-01 · by: planning session (re-verified 01–08 independently; see Verify)
 
 ## Where we are
-Phase: plans 01–07 built and verified locally. What is left needs the user: deploy, the recording, the
+Phase: plans 01–08 built and verified locally. What is left needs the user: deploy, the recording, the
 unseen-part checks on the live URL, the licence choice, and sending the email.
-Plans 04–07 are committed on local `main`; `origin/main` is still at `aedfa35` (plans 01–03) until pushed.
+Plans 01–08 are committed and pushed to `origin/main`; history was rewritten on 2026-11-01 to drop the
+brand pack and the assignment PDF (see decisions.md).
 
 What works: load an STL → candidate seams → hover / click to add / shift-click to join / M for manual
 seams → list with drag reorder, rename, delete, order chips → parameter form per seam → export dialog
 with validation, JSON preview, download, import (hash-checked) → autosave and restore on reload → error
-boundary, shortcuts (`?`), first-run hint, drop-zone links to the README.
+boundary, shortcuts (`?`), first-run hint, drop-zone links to the README → (plan 08) undo/redo,
+dashed air moves with an air total, order by nearest, torch ticks on the selected seam, view presets
+1–4 and an axis triad, export schema 1.1 (`summary.airTravelMm`).
+
+Current plan: none. Plan 08 is done (`docs/plans/08-order-direction-undo-views.md`, outcome at the end).
+Candidates if there is time: 06b (cloud save) or a small 09 (sample parts in the empty state).
 
 ## Next action (user)
-1. Push `main` when ready. Optional: untrack the brand pack (command in decisions.md "Brand pack
-   ignored, not untracked").
+1. Pushed. The brand pack and PDF are out of history; keep them out (both are gitignored).
 2. Deploy (Vercel, framework Vite, defaults). Paste the URL into `README.md` ("Live app" line) and
    `docs/submission-email.md`.
 3. Record from `docs/recording-script.md`, upload unlisted, paste the link into both files.
@@ -35,13 +40,19 @@ boundary, shortcuts (`?`), first-run hint, drop-zone links to the README.
 - [x] 06 persistence + polish (deploy parked)
 - [ ] 06b optional cloud save (not started)
 - [~] 07 README, screenshots, recording script, email draft done; recording, live checks, sending left
+- [x] 08 order, direction, undo, views (uncommitted)
 
 ## Verify
-- `npm run test` (61 tests, including the README schema-table sync) · `npm run lint` · `npm run build`
+- 2026-11-01 planning session re-run: vitest 82/82, oxlint clean, build clean (807 kB JS, 218 kB gzip);
+  e2e-04 28/28, e2e-05 26/26, e2e-06 21/21, e2e-08 53/53, e2e-resp 20/20, e2e-restore 5/5,
+  e2e-export3 5/5, e2e-perf 7/7, e2e-prod 7/7 (`vite preview --port 4199`); the six downloaded jobs
+  re-checked independently against schema 1.1 (airTravelMm = sum of exit→entry moves, time formula
+  with air at 100 mm/s); a clean copy of the committable files passes `npm ci && npm run build && npm test`.
+- `npm run test` (82 tests, including the README schema-table sync) · `npm run lint` · `npm run build`
 - `npm run docs:schema` after any change to `src/export/schema.ts`.
 - Browser suites (headless Chrome/Edge via puppeteer-core, kept outside the repo in the session scratch
   folder; recreate from the plan outcomes if needed): e2e-04 (28), e2e-05 (26), e2e-06 (21),
-  e2e-resp (20), e2e-perf (7), e2e-restore (5), e2e-export3 (5), e2e-prod (7), e2e-07 (18).
+  e2e-resp (20), e2e-perf (7), e2e-restore (5), e2e-export3 (5), e2e-prod (7), e2e-07 (18), e2e-08 (53).
 - Test parts in `samples/` (gitignored); `node scripts/gen-samples.mjs samples` rebuilds the synthetic
   ones. The dev server serves them at `/samples/<name>`.
 - Dev builds expose `window.__wsp = { store, scene }` for tests (scene.toClient, pickCandidate).
@@ -82,3 +93,18 @@ boundary, shortcuts (`?`), first-run hint, drop-zone links to the README.
   downloads silently go nowhere.
 - On the T-joint's default view, the −X web foot (x = 95) is hidden behind the web; the picker
   correctly refuses it. Use the +X foot or a gusset edge in tests.
+- Never `git stash` (or otherwise swap files) while a browser suite runs against the dev server: Vite
+  hot-reloads the reverted files mid-test and the suite fails with "execution context destroyed".
+- `LineMaterial` dashes need `computeLineDistances()` on the `LineSegments2` after every `setPositions`,
+  or the line draws solid.
+- OrbitControls has no orbit "up" when the camera looks straight down its up axis: the Top preset tilts
+  by 1e-4 so part +Y stays up the screen.
+- The detail panel's name and notes inputs are uncontrolled; they are keyed by their value so an undo
+  or a rename elsewhere shows up in them.
+- Headless `fetch(...).blob()` of a ~50 MB sample fails with "Failed to fetch" when C: is nearly full
+  (2.8 GB free on 2026-11-01); `arrayBuffer()` then `new File([buf])` works. `lib.mjs` `drop()` now
+  uses that. Not an app bug: real drops hand the app a File directly.
+- Orbit frame-time comparisons on the 1M-triangle part drift 2× between the first and last measurement
+  of one run (warm-up, hybrid CPU). Interleave A/B and take medians; e2e-08's tick check does now.
+- If nothing answers on 5173, start `npx vite --port 5173 --strictPort` yourself; the user's server is
+  not always running.

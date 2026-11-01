@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Candidate, Vec3 } from '../geometry/types'
-import { flipSeam, joinSeam, polylineLength, seamFromCandidate, seamFromPoints, seamName, seamOwners } from './seams'
+import { flipSeam, joinSeam, polylineLength, samplePath, seamFromCandidate, seamFromPoints, seamName, seamOwners } from './seams'
 
 const up: Vec3 = [0, 0, 1]
 const cand = (id: number, points: Vec3[], closed = false): Candidate => ({
@@ -79,5 +79,23 @@ describe('seam helpers', () => {
     const owners = seamOwners([short, long], [seamFromCandidate(short, 'S', 'S-01')], 1e-4)
     expect(owners.get(0)).toBe('S')
     expect(owners.has(1)).toBe(false)
+  })
+})
+
+describe('samplePath', () => {
+  test('even spacing along an L, ends included, normals interpolated and unit length', () => {
+    const pts: Vec3[] = [[0, 0, 0], [10, 0, 0], [10, 10, 0]]
+    const seam = { points: pts, normals: [up, up, [1, 0, 0] as Vec3], closed: false }
+    const s = samplePath(seam, 5)
+    expect(s.map((x) => x.p)).toEqual([[0, 0, 0], [5, 0, 0], [10, 0, 0], [10, 5, 0], [10, 10, 0]])
+    expect(s[4].n).toEqual([1, 0, 0])
+    expect(s[3].n[0]).toBeCloseTo(Math.SQRT1_2)
+    for (const x of s) expect(Math.hypot(...x.n)).toBeCloseTo(1)
+  })
+
+  test('a loop is sampled all the way round without repeating its start', () => {
+    const sq: Vec3[] = [[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]]
+    const s = samplePath({ points: sq, normals: sq.map(() => up), closed: true }, 4)
+    expect(s.map((x) => x.p)).toEqual(sq)
   })
 })

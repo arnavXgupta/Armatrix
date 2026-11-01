@@ -1,5 +1,6 @@
 import { estimateTimeS, mmPerUnit } from '../export/toWeldJob'
 import { bboxSize } from '../geometry/parseStl'
+import { airTravel } from '../store/sequence'
 import { BIG_PART_TRIANGLES, useStore, type StoreState } from '../store/useStore'
 import { formatDuration, formatLength } from '../ui/format'
 
@@ -14,7 +15,8 @@ function summary(s: StoreState) {
   const n = s.candidates.length
   const total = s.seams.reduce((sum, x) => sum + x.length, 0)
   const k = mmPerUnit(part.units)
-  const est = estimateTimeS(s.seams.map((x) => ({ lengthMm: x.length * k, params: x.params })))
+  const air = airTravel(s.seams)
+  const est = estimateTimeS(s.seams.map((x) => ({ lengthMm: x.length * k, params: x.params })), air * k)
   return [
     part.name,
     `${part.triangles.toLocaleString()} tris`,
@@ -25,6 +27,7 @@ function summary(s: StoreState) {
     deg === null ? 'finding candidate seams…' : `${n.toLocaleString()} candidate ${n === 1 ? 'seam' : 'seams'} at ${deg}°`,
     deg !== null && deg !== s.ui.angleThreshold && `updating to ${s.ui.angleThreshold}°…`,
     s.seams.length > 0 && `${s.seams.length} ${s.seams.length === 1 ? 'seam' : 'seams'} · ${formatLength(total, part.units)}`,
+    s.seams.length > 1 && `air ${formatLength(air, part.units)}`,
     s.seams.length > 0 && known && `est. ${formatDuration(est)}`,
     s.status.kind === 'restored' && `restored, ${s.status.message}`,
     s.autosaveError && `autosave off: ${s.autosaveError}`,

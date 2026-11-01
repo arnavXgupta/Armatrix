@@ -42,3 +42,6 @@ export function defaultParams(weldType: WeldType = 'fillet', process: Process = 
 
 /** Arc start/stop allowance per seam in the time estimate, seconds. */
 export const SEAM_OVERHEAD_S = 4
+
+/** Torch speed for the moves between seams (arc off) in the time estimate, mm/s. */
+export const AIR_SPEED_MM_S = 100

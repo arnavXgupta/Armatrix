@@ -76,6 +76,34 @@ export function joinSeam(seam: Seam, pts: Vec3[], nrm: Vec3[], tol: number): Sea
   return { ...seam, points, normals, closed, length: polylineLength(points, closed) }
 }
 
+/**
+ * `count` points evenly spaced by length along the path, ends included (a loop's end is its start,
+ * so it is not repeated). Normals are interpolated between waypoints and re-normalised: what a
+ * controller's linear interpolation would do between two exported waypoints.
+ */
+export function samplePath(s: Pick<Seam, 'points' | 'normals' | 'closed'>, count: number): { p: Vec3; n: Vec3 }[] {
+  const pts = s.closed ? [...s.points, s.points[0]] : s.points
+  const nrm = s.closed ? [...s.normals, s.normals[0]] : s.normals
+  const cum = [0]
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i]))
+  const total = cum[cum.length - 1]
+  const out: { p: Vec3; n: Vec3 }[] = []
+  const k = Math.max(2, count)
+  let seg = 1
+  for (let j = 0; j < k; j++) {
+    const at = s.closed ? (total * j) / k : (total * j) / (k - 1)
+    while (seg < pts.length - 1 && cum[seg] < at) seg++
+    const len = cum[seg] - cum[seg - 1]
+    const t = len > 0 ? Math.min(1, Math.max(0, (at - cum[seg - 1]) / len)) : 0
+    const a = pts[seg - 1], b = pts[seg], na = nrm[seg - 1], nb = nrm[seg]
+    const p: Vec3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
+    const m: Vec3 = [na[0] + (nb[0] - na[0]) * t, na[1] + (nb[1] - na[1]) * t, na[2] + (nb[2] - na[2]) * t]
+    const ml = Math.hypot(...m)
+    out.push({ p, n: ml > 1e-6 ? [m[0] / ml, m[1] / ml, m[2] / ml] : na })
+  }
+  return out
+}
+
 /** Reverse the weld direction. A loop keeps its start point and runs the other way round. */
 export function flipSeam(seam: Seam): Seam {
   const flip = <T,>(a: T[]) => (seam.closed ? [a[0], ...a.slice(1).reverse()] : [...a].reverse())

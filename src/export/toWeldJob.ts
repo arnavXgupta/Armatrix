@@ -2,7 +2,8 @@ import { version } from '../../package.json'
 import { bboxDiagonal, type Units } from '../geometry/parseStl'
 import type { Bbox, Vec3 } from '../geometry/types'
 import type { Seam } from '../store/seams'
-import { SEAM_OVERHEAD_S } from './defaults'
+import { airTravel } from '../store/sequence'
+import { AIR_SPEED_MM_S, SEAM_OVERHEAD_S } from './defaults'
 import { SCHEMA_VERSION, UNIT_SCALE, type ExportedSeam, type SourceUnits, type WeldJob, type WeldParams } from './schema'
 
 export const GENERATOR = `armatrix-weld-seam-planner/${version}`
@@ -11,7 +12,7 @@ export const GENERATOR = `armatrix-weld-seam-planner/${version}`
 export const formatJob = (job: unknown) =>
   JSON.stringify(job, null, 2).replace(/\[\s+([-+\d.e,\s]+?)\s+\]/g, (_, inner: string) => `[${inner.split(/,\s*/).join(', ')}]`)
 
-export type JobMeta ={ id: string; name: string; operator: string; notes: string }
+export type JobMeta = { id: string; name: string; operator: string; notes: string }
 export type JobInput = {
   part: { name: string; sha256: string; triangles: number; bbox: Bbox; units: Units }
   seams: Seam[]
@@ -23,9 +24,9 @@ export type JobInput = {
 export const sourceUnits = (u: Units): SourceUnits => (u === 'unknown' ? 'mm' : u)
 export const mmPerUnit = (u: Units) => UNIT_SCALE[sourceUnits(u)]
 
-/** Arc time plus a fixed start/stop allowance per seam. Seams with no valid speed add only the allowance. */
-export function estimateTimeS(seams: { lengthMm: number; params: WeldParams }[]): number {
-  let t = 0
+/** Arc time, air moves and a fixed start/stop allowance per seam. Seams with no valid speed add only the allowance. */
+export function estimateTimeS(seams: { lengthMm: number; params: WeldParams }[], airTravelMm = 0): number {
+  let t = airTravelMm / AIR_SPEED_MM_S
   for (const { lengthMm, params } of seams) {
     if (params.travelSpeedMmS > 0) t += (lengthMm / params.travelSpeedMmS) * Math.max(1, params.passes)
     t += SEAM_OVERHEAD_S
@@ -54,6 +55,7 @@ export function toWeldJob({ part, seams, job, createdAt = new Date().toISOString
     ...(s.notes ? { notes: s.notes } : {}),
   }))
   const totalLengthMm = out.reduce((sum, s) => sum + s.lengthMm, 0)
+  const airTravelMm = r(airTravel(seams) * k)
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -76,7 +78,8 @@ export function toWeldJob({ part, seams, job, createdAt = new Date().toISOString
     summary: {
       seamCount: out.length,
       totalLengthMm: r(totalLengthMm),
-      estimatedTimeS: Math.round(estimateTimeS(out.map((s) => ({ lengthMm: s.lengthMm, params: s.parameters })))),
+      airTravelMm,
+      estimatedTimeS: Math.round(estimateTimeS(out.map((s) => ({ lengthMm: s.lengthMm, params: s.parameters })), airTravelMm)),
     },
   }
 }
