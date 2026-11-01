@@ -35,17 +35,6 @@ npm install
 npm run dev          # http://localhost:5173 (port taken? npm run dev -- --port 5174)
 ```
 
-Other commands:
-
-```sh
-npm run test         # vitest: parser, topology, detection, seams, store, export, storage, docs sync
-npm run build        # type-check, then production bundle in dist/
-npm run preview      # serve dist/ at http://localhost:4173
-npm run lint         # oxlint
-npm run docs:schema  # regenerate the field table in this README from src/export/schema.ts
-node scripts/gen-samples.mjs samples   # write the synthetic test parts into samples/
-```
-
 ## Use it
 
 1. **Load a part.** Drop an `.stl` on the page or click to browse. Binary and ASCII both work, up to
@@ -164,16 +153,6 @@ blocked, it says "autosave off" and keeps working.
 - "How it works" and "Export schema" cards in the empty state. The schema card is generated from the
   same JSDoc as the table below.
 
-**Not built:**
-
-- smoothing or curve fitting of seam paths (they follow mesh edges)
-- reachability, collision or robot kinematics checks
-- assemblies or several parts per job
-- cloud save and share links (designed as plan 06b, see below)
-- the shortest possible weld order: "Order by nearest" is a greedy pass, usually shorter but not optimal
-- animated playback of the weld sequence
-- snapping manual points to edges
-
 ## Architecture and design decisions
 
 Vite, React 18, TypeScript, plain three.js and zustand. No UI kit and no CSS framework.
@@ -218,9 +197,7 @@ export ─ src/export/   toWeldJob → validateJob → JSON download
   A backend is one more implementation of the same interface that POSTs and GETs that document, keyed
   by the part's SHA-256.
 
-The full log of choices and rejected alternatives is in [`decisions.md`](decisions.md). The workflow
-and state model are in [`flow.md`](flow.md). Each feature's plan, with its test results, is in
-[`docs/plans/`](docs/plans/).
+Each feature's plan, with its test results, is in [`docs/plans/`](docs/plans/).
 
 ### How seam detection works
 
@@ -248,14 +225,6 @@ the edges whose two triangles face different directions. Detection lives in `src
 
 ![The 40 mm fan with candidate edges drawn dark and the outer rim hovered in orange, with a tooltip reading "crease 90° · 153 mm · click to add".](docs/screenshots/detection.png)
 
-**Limits.**
-
-- Smooth or scanned parts have no crisp creases. At low angles, facet noise turns into many short
-  candidates.
-- A curved seam is a polyline through the mesh's own vertices, as fine as the tessellation.
-- Manual mode covers what detection can't: seams across a flat face, on a scan, or anywhere the edges
-  don't match the weld. Click points on the surface and each one takes that face's normal.
-
 Picking uses the GPU. A second scene draws a depth-only copy of the part and the candidate lines, each
 line coloured with its id. Only a 13 × 13 px window around the pointer is rendered and read back.
 Hidden edges can't be picked, and a pick costs 2–6 ms on a 1M-triangle part.
@@ -271,8 +240,6 @@ Hidden edges can't be picked, and a pick costs 2–6 ms on a 1M-triangle part.
   detection.
 - **One document for export and autosave.** It is always in mm, in the part's frame, and tied to the
   part's SHA-256. A future backend stores the same document.
-
-Every other decision, with the alternative it rejected, is in [`decisions.md`](decisions.md).
 
 ## Weld job JSON schema
 
@@ -548,8 +515,7 @@ and `src/styles/tokens.css` holds them as CSS variables. A test keeps the two in
 
 I built this with Claude Code (Anthropic) as a pair programmer. It helped with planning,
 implementation, tests and the headless browser checks. I reviewed every module and can explain each
-choice. `docs/plans/` shows how the work was split into features, each planned before it was built,
-and `decisions.md` records why each choice was made.
+choice. `docs/plans/` shows how the work was split into features, each planned before it was built.
 
 ---
 
